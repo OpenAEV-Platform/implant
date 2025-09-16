@@ -1,6 +1,6 @@
 [package]
 name = "openbas-implant"
-version = "1.18.18"
+version = "1.18.19"
 edition = "2021"
 
 
