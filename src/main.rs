@@ -67,8 +67,25 @@ pub fn set_error_hook() {
                 .copied()
                 .unwrap_or("<cause unknown>")
         });
-
         error!("An error occurred in file {filename:?} line {line:?}: {cause:?}");
+        // Send the error and logs to OpenAEV for the inject and agent concerned
+        let args = Args::parse();
+        let api = Client::new(
+            args.uri,
+            args.token,
+            args.unsecured_certificate == "true",
+            args.with_proxy == "true",
+        );
+        let _ = api.update_status(
+            args.inject_id,
+            args.agent_id,
+            UpdateInput {
+                execution_message: String::from(cause),
+                execution_status: String::from("ERROR"),
+                execution_duration: 0,
+                execution_action: String::from("complete"),
+            },
+        );
     }));
 }
 
