@@ -57,7 +57,7 @@ jobs:
           name: push to jfrog
           command: | 
             $env:version = if ($env:CIRCLE_TAG) { $env:CIRCLE_TAG } else { if ($env:CIRCLE_BRANCH -eq "main") { "latest" } else { "prerelease" } }
-            curl.exe --fail-with-body -u samuel.hassine@filigran.io:$env:JFROG_TOKEN -T ./target/release/openbas-implant.exe "https://filigran.jfrog.io/artifactory/openbas-implant/windows/x86_64/openbas-implant-$env:version.exe"
+            curl.exe --fail-with-body -u samuel.hassine@filigran.io:$env:JFROG_TOKEN -T ./target/release/openaev-implant.exe "https://filigran.jfrog.io/artifactory/openaev-implant/windows/x86_64/openaev-implant-$env:version.exe"
       - run: |
           cargo install cargo-cache
           cargo-cache -a clean-unref
@@ -67,7 +67,7 @@ jobs:
             - ~/.cargo
   windows_arm_64_compile:
     machine: true
-    resource_class: openbas-platform/openbas-agent-windows-64bits-arm
+    resource_class: openaev-platform/openaev-agent-windows-64bits-arm
     shell: 'powershell.exe -ExecutionPolicy Bypass'
     steps:
       - checkout
@@ -105,7 +105,7 @@ jobs:
             - ~/.cargo
   windows_arm_64_build:
     machine: true
-    resource_class: openbas-platform/openbas-agent-windows-64bits-arm
+    resource_class: openaev-platform/openaev-agent-windows-64bits-arm
     shell: 'powershell.exe -ExecutionPolicy Bypass'
     steps:
       - checkout
@@ -125,7 +125,7 @@ jobs:
           name: push to jfrog
           command: |
             $env:version = if ($env:CIRCLE_TAG) { $env:CIRCLE_TAG } else { if ($env:CIRCLE_BRANCH -eq "main") { "latest" } else { "prerelease" } }
-            curl.exe --fail-with-body -u samuel.hassine@filigran.io:$env:JFROG_TOKEN -T ./target/release/openbas-implant.exe "https://filigran.jfrog.io/artifactory/openbas-implant/windows/arm64/openbas-implant-$env:version.exe"
+            curl.exe --fail-with-body -u samuel.hassine@filigran.io:$env:JFROG_TOKEN -T ./target/release/openaev-implant.exe "https://filigran.jfrog.io/artifactory/openaev-implant/windows/arm64/openaev-implant-$env:version.exe"
       - run: |
           cargo install cargo-cache
           cargo-cache -a clean-unref
@@ -158,7 +158,7 @@ jobs:
       - run: cargo audit
       - run: . "$HOME/.cargo/env"; cargo build --target=x86_64-unknown-linux-musl --release
       - run: . "$HOME/.cargo/env"; cargo test --release
-      - run: strip ./target/x86_64-unknown-linux-musl/release/openbas-implant
+      - run: strip ./target/x86_64-unknown-linux-musl/release/openaev-implant
       - run: |
           cargo install cargo-cache
           cargo-cache -a clean-unref
@@ -181,12 +181,12 @@ jobs:
       - run: . "$HOME/.cargo/env"; rustup target add x86_64-unknown-linux-musl
       - run: . "$HOME/.cargo/env"; cargo build --target=x86_64-unknown-linux-musl --release
       - run: . "$HOME/.cargo/env"; cargo test --release
-      - run: strip ./target/x86_64-unknown-linux-musl/release/openbas-implant
+      - run: strip ./target/x86_64-unknown-linux-musl/release/openaev-implant
       - run:
           name: push to jfrog
           command: | 
             export version=${CIRCLE_TAG:-$( [ "$CIRCLE_BRANCH" = "main" ] && echo "latest" || echo "prerelease" )}
-            curl --fail-with-body -usamuel.hassine@filigran.io:$JFROG_TOKEN -T ./target/x86_64-unknown-linux-musl/release/openbas-implant "https://filigran.jfrog.io/artifactory/openbas-implant/linux/x86_64/openbas-implant-$version"
+            curl --fail-with-body -usamuel.hassine@filigran.io:$JFROG_TOKEN -T ./target/x86_64-unknown-linux-musl/release/openaev-implant "https://filigran.jfrog.io/artifactory/openaev-implant/linux/x86_64/openaev-implant-$version"
       - run: |
           cargo install cargo-cache
           cargo-cache -a clean-unref
@@ -220,7 +220,7 @@ jobs:
       - run: cargo audit
       - run: . "$HOME/.cargo/env"; cargo build --target=aarch64-unknown-linux-musl --release
       - run: . "$HOME/.cargo/env"; cargo test --release
-      - run: strip ./target/aarch64-unknown-linux-musl/release/openbas-implant
+      - run: strip ./target/aarch64-unknown-linux-musl/release/openaev-implant
       - run: |
           cargo install cargo-cache
           cargo-cache -a clean-unref
@@ -244,12 +244,12 @@ jobs:
       - run: . "$HOME/.cargo/env"; rustup target add aarch64-unknown-linux-musl
       - run: . "$HOME/.cargo/env"; cargo build --target=aarch64-unknown-linux-musl --release
       - run: . "$HOME/.cargo/env"; cargo test --release
-      - run: strip ./target/aarch64-unknown-linux-musl/release/openbas-implant
+      - run: strip ./target/aarch64-unknown-linux-musl/release/openaev-implant
       - run:
           name: push to jfrog
           command: |
             export version=${CIRCLE_TAG:-$( [ "$CIRCLE_BRANCH" = "main" ] && echo "latest" || echo "prerelease" )}
-            curl --fail-with-body -usamuel.hassine@filigran.io:$JFROG_TOKEN -T ./target/aarch64-unknown-linux-musl/release/openbas-implant "https://filigran.jfrog.io/artifactory/openbas-implant/linux/arm64/openbas-implant-$version"
+            curl --fail-with-body -usamuel.hassine@filigran.io:$JFROG_TOKEN -T ./target/aarch64-unknown-linux-musl/release/openaev-implant "https://filigran.jfrog.io/artifactory/openaev-implant/linux/arm64/openaev-implant-$version"
       - run: |
           cargo install cargo-cache
           cargo-cache -a clean-unref
@@ -280,7 +280,7 @@ jobs:
       - run: cargo audit
       - run: . "$HOME/.cargo/env"; cargo build --release
       - run: . "$HOME/.cargo/env"; cargo test --release
-      - run: strip ./target/release/openbas-implant
+      - run: strip ./target/release/openaev-implant
       - run: |
           cargo install --force cargo-cache
           cargo-cache -a clean-unref
@@ -301,12 +301,12 @@ jobs:
       - run: curl https://sh.rustup.rs -sSf | sh -s -- -y
       - run: . "$HOME/.cargo/env"; cargo build --release
       - run: . "$HOME/.cargo/env"; cargo test --release
-      - run: strip ./target/release/openbas-implant
+      - run: strip ./target/release/openaev-implant
       - run:
           name: push to jfrog
           command: |
             export version=${CIRCLE_TAG:-$( [ "$CIRCLE_BRANCH" = "main" ] && echo "latest" || echo "prerelease" )}
-            curl --fail-with-body -usamuel.hassine@filigran.io:$JFROG_TOKEN -T ./target/release/openbas-implant "https://filigran.jfrog.io/artifactory/openbas-implant/macos/arm64/openbas-implant-$version"
+            curl --fail-with-body -usamuel.hassine@filigran.io:$JFROG_TOKEN -T ./target/release/openaev-implant "https://filigran.jfrog.io/artifactory/openaev-implant/macos/arm64/openaev-implant-$version"
       - run: |
           cargo install --force cargo-cache
           cargo-cache -a clean-unref
@@ -316,7 +316,7 @@ jobs:
             - ~/.cargo
   macos_x86_64_compile:
     machine: true
-    resource_class: openbas-platform/openbas-agent-macos-64bits-x86
+    resource_class: openaev-platform/openaev-agent-macos-64bits-x86
     steps:
       - checkout
       - restore_cache:
@@ -338,7 +338,7 @@ jobs:
       - run: cargo audit
       - run: . "$HOME/.cargo/env"; cargo build --release
       - run: . "$HOME/.cargo/env"; cargo test --release
-      - run: strip ./target/release/openbas-implant
+      - run: strip ./target/release/openaev-implant
       - run: |
           cargo install --force cargo-cache
           cargo-cache -a clean-unref
@@ -348,7 +348,7 @@ jobs:
             - ~/.cargo
   macos_x86_64_build:
     machine: true
-    resource_class: openbas-platform/openbas-agent-macos-64bits-x86
+    resource_class: openaev-platform/openaev-agent-macos-64bits-x86
     steps:
       - checkout
       - restore_cache:
@@ -360,12 +360,12 @@ jobs:
       - run: rustup default stable-x86_64-apple-darwin
       - run: . "$HOME/.cargo/env"; cargo build --release
       - run: . "$HOME/.cargo/env"; cargo test --release
-      - run: strip ./target/release/openbas-implant
+      - run: strip ./target/release/openaev-implant
       - run:
           name: push to jfrog
           command: |
             export version=${CIRCLE_TAG:-$( [ "$CIRCLE_BRANCH" = "main" ] && echo "latest" || echo "prerelease" )}
-            curl --fail-with-body -usamuel.hassine@filigran.io:$JFROG_TOKEN -T ./target/release/openbas-implant "https://filigran.jfrog.io/artifactory/openbas-implant/macos/x86_64/openbas-implant-$version"
+            curl --fail-with-body -usamuel.hassine@filigran.io:$JFROG_TOKEN -T ./target/release/openaev-implant "https://filigran.jfrog.io/artifactory/openaev-implant/macos/x86_64/openaev-implant-$version"
       - run: |
           cargo install --force cargo-cache
           cargo-cache -a clean-unref
@@ -375,7 +375,7 @@ jobs:
             - ~/.cargo
 
 workflows:
-  openbas-implant:
+  openaev-implant:
     jobs:
       - windows_x86_64_compile:
           filters:

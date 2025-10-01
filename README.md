@@ -1,11 +1,11 @@
-# OpenBAS Implant
+# OpenAEV Implant
 
-[![Website](https://img.shields.io/badge/website-openbas.io-blue.svg)](https://openbas.io)
-[![CircleCI](https://circleci.com/gh/OpenBAS-Platform/implant.svg?style=shield)](https://circleci.com/gh/OpenBAS-Platform/implant/tree/main)
-[![GitHub release](https://img.shields.io/github/release/OpenBAS-Platform/implant.svg)](https://github.com/OpenBAS-Platform/implant/releases/latest)
+[![Website](https://img.shields.io/badge/website-openaev.io-blue.svg)](https://openaev.io)
+[![CircleCI](https://circleci.com/gh/OpenAEV-Platform/implant.svg?style=shield)](https://circleci.com/gh/OpenAEV-Platform/implant/tree/main)
+[![GitHub release](https://img.shields.io/github/release/OpenAEV-Platform/implant.svg)](https://github.com/OpenAEV-Platform/implant/releases/latest)
 [![Slack Status](https://img.shields.io/badge/slack-3K%2B%20members-4A154B)](https://community.filigran.io)
 
-The following repository is used to store the OpenBAS implant for the platform. For performance and low level access, the agent is written in Rust. Please start your journey with https://doc.rust-lang.org/book.
+The following repository is used to store the OpenAEV implant for the platform. For performance and low level access, the agent is written in Rust. Please start your journey with https://doc.rust-lang.org/book.
 
 ---
 
@@ -15,12 +15,12 @@ There is **no direct installation** required for the implant.
 
 Instead, it is executed by a neutral orchestrator such as:
 
-- **OpenBAS Agent**
+- **OpenAEV Agent**
 - **Tanium**
 - **Caldera**
 - Or any other compatible execution engine
 
-Execution is fully managed by the orchestrator via OpenBAS scenarios.
+Execution is fully managed by the orchestrator via OpenAEV scenarios.
 
 ---
 
@@ -129,7 +129,7 @@ cargo update
 When running the implant locally (e.g., using `cargo run`), logs are written to:
 
 ```
-target/debug/openbas-implant.log
+target/debug/openaev-implant.log
 ```
 
 Check this file to investigate errors or debug behavior during development.
@@ -138,6 +138,6 @@ Check this file to investigate errors or debug behavior during development.
 
 ## 🧬 About
 
-OpenBAS is developed by [Filigran](https://filigran.io), a company building open-source security tooling.
+OpenAEV is developed by [Filigran](https://filigran.io), a company building open-source security tooling.
 
 <a href="https://filigran.io" alt="Filigran"><img src="https://github.com/OpenCTI-Platform/opencti/raw/master/.github/img/logo_filigran.png" width="300" /></a>

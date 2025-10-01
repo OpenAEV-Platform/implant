@@ -27,7 +27,7 @@ mod tests;
 pub static THREADS_CONTROL: AtomicBool = AtomicBool::new(true);
 const ENV_PRODUCTION: &str = "production";
 const VERSION: &str = env!("CARGO_PKG_VERSION");
-const PREFIX_LOG_NAME: &str = "openbas-implant.log";
+const PREFIX_LOG_NAME: &str = "openaev-implant.log";
 
 #[derive(Parser, Debug)]
 #[command(version, about, long_about = None)]
@@ -254,7 +254,7 @@ fn main() -> Result<(), Error> {
     // region Process execution
 
     let args = Args::parse();
-    info!("Starting OpenBAS implant {} {}", VERSION, mode());
+    info!("Starting OpenAEV implant {} {}", VERSION, mode());
     let api = Client::new(
         args.uri,
         args.token,
