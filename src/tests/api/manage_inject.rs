@@ -13,7 +13,7 @@ mod tests {
         let server_url = server.url();
 
         let filename = "test.txt";
-        let file_content = "Hello, OpenBAS!";
+        let file_content = "Hello, OpenAEV!";
         let content_disposition = format!("attachment; filename=\"{}\"", filename);
 
         let _m = server
@@ -57,7 +57,7 @@ mod tests {
         let server_url = server.url();
 
         let filename = "test.txt";
-        let file_content = "Hello, OpenBAS!";
+        let file_content = "Hello, OpenAEV!";
         let content_disposition = format!("attachment; filename=\"{}\"", filename);
 
         let _m = server

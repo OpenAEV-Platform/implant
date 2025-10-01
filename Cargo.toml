@@ -1,5 +1,5 @@
 [package]
-name = "openbas-implant"
+name = "openaev-implant"
 version = "1.18.20"
 edition = "2021"
 
