@@ -3,20 +3,33 @@
   "extends": [
     "config:recommended"
   ],
-  "baseBranches": ["release/current", "main"],
+  "baseBranchPatterns": [
+    "release/current",
+    "main"
+  ],
   "packageRules": [
     {
-      "matchBaseBranches": ["release/current"],
+      "matchBaseBranches": [
+        "release/current"
+      ],
       "commitMessageSuffix": null
     },
     {
-      "matchJsonata": ["$exists(isVulnerabilityAlert)"],
-      "matchBaseBranches": ["release/current"],
+      "matchJsonata": [
+        "$exists(isVulnerabilityAlert)"
+      ],
+      "matchBaseBranches": [
+        "release/current"
+      ],
       "enabled": false
     },
     {
-      "matchJsonata": ["$not($exists(isVulnerabilityAlert))"],
-      "matchBaseBranches": ["main"],
+      "matchJsonata": [
+        "$not($exists(isVulnerabilityAlert))"
+      ],
+      "matchBaseBranches": [
+        "main"
+      ],
       "enabled": false
     }
   ]
