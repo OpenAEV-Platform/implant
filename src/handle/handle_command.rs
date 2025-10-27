@@ -13,7 +13,12 @@ fn compute_working_dir() -> PathBuf {
     let current_exe_path = env::current_exe().unwrap();
     let parent_path = current_exe_path.parent().unwrap();
     let folder_name = parent_path.file_name().unwrap().to_str().unwrap();
-    let payloads_path = parent_path.parent().unwrap().parent().unwrap().join("payloads");
+    let payloads_path = parent_path
+        .parent()
+        .unwrap()
+        .parent()
+        .unwrap()
+        .join("payloads");
     payloads_path.join(folder_name)
 }
 

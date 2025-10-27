@@ -3,7 +3,7 @@ import logging
 import os
 
 import requests
-from OBAS_utils.release_utils import check_release, closeRelease
+from OAEV_utils.release_utils import check_release, closeRelease
 
 logging.basicConfig(encoding="utf-8", level=logging.INFO)
 
@@ -61,28 +61,28 @@ logging.info("[implant] Tagging")
 os.system("git tag -f " + new_version + " && git push -f --tags > /dev/null 2>&1")
 
 check_release(
-    "https://filigran.jfrog.io/ui/native/openbas-implant/linux/x86_64/",
-    "openbas-implant-" + new_version,
+    "https://filigran.jfrog.io/ui/native/openaev-implant/linux/x86_64/",
+    "openaev-implant-" + new_version,
 )
 check_release(
-    "https://filigran.jfrog.io/ui/native/openbas-implant/linux/arm64/",
-    "openbas-implant-" + new_version,
+    "https://filigran.jfrog.io/ui/native/openaev-implant/linux/arm64/",
+    "openaev-implant-" + new_version,
 )
 check_release(
-    "https://filigran.jfrog.io/ui/native/openbas-implant/macos/x86_64/",
-    "openbas-implant-" + new_version,
+    "https://filigran.jfrog.io/ui/native/openaev-implant/macos/x86_64/",
+    "openaev-implant-" + new_version,
 )
 check_release(
-    "https://filigran.jfrog.io/ui/native/openbas-implant/macos/arm64/",
-    "openbas-implant-" + new_version,
+    "https://filigran.jfrog.io/ui/native/openaev-implant/macos/arm64/",
+    "openaev-implant-" + new_version,
 )
 check_release(
-    "https://filigran.jfrog.io/ui/native/openbas-implant/windows/x86_64/",
-    "openbas-implant-" + new_version,
+    "https://filigran.jfrog.io/ui/native/openaev-implant/windows/x86_64/",
+    "openaev-implant-" + new_version,
 )
 check_release(
-    "https://filigran.jfrog.io/ui/native/openbas-implant/windows/arm64/",
-    "openbas-implant-" + new_version,
+    "https://filigran.jfrog.io/ui/native/openaev-implant/windows/arm64/",
+    "openaev-implant-" + new_version,
 )
 
 logging.info("[implant] Generating release")
@@ -91,7 +91,7 @@ os.system("gren release > /dev/null 2>&1")
 # Modify the release note
 logging.info("[implant] Getting the current release note")
 release = requests.get(
-    "https://api.github.com/repos/OpenBAS-Platform/implant/releases/latest",
+    "https://api.github.com/repos/OpenAEV-Platform/implant/releases/latest",
     headers={
         "Accept": "application/vnd.github+json",
         "Authorization": "Bearer " + github_token,
@@ -103,7 +103,7 @@ release_body = release_data["body"]
 
 logging.info("[implant] Generating the new release note")
 github_release_note = requests.post(
-    "https://api.github.com/repos/OpenBAS-Platform/implant/releases/generate-notes",
+    "https://api.github.com/repos/OpenAEV-Platform/implant/releases/generate-notes",
     headers={
         "Accept": "application/vnd.github+json",
         "Authorization": "Bearer " + github_token,
@@ -126,7 +126,7 @@ else:
 
 logging.info("[implant] Updating the release")
 requests.patch(
-    "https://api.github.com/repos/OpenBAS-Platform/implant/releases/"
+    "https://api.github.com/repos/OpenAEV-Platform/implant/releases/"
     + str(release_data["id"]),
     headers={
         "Accept": "application/vnd.github+json",
@@ -137,6 +137,6 @@ requests.patch(
 )
 
 closeRelease(
-    "https://api.github.com/repos/OpenBAS-Platform/implant", new_version, github_token
+    "https://api.github.com/repos/OpenAEV-Platform/implant", new_version, github_token
 )
 logging.info("[implant] Release done!")

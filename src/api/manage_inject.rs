@@ -1,12 +1,13 @@
 use super::Client;
 use crate::common::error_model::Error;
+use crate::process::exec_utils::decode_filename;
 use log::{error, info};
 use mailparse::{parse_content_disposition, parse_header};
 use reqwest::blocking::Response;
 use reqwest::header::CONTENT_DISPOSITION;
 use serde::{Deserialize, Serialize};
 use serde_json::json;
-use std::fs::{File};
+use std::fs::File;
 use std::io::{BufWriter, Write};
 use std::path::PathBuf;
 use std::thread::sleep;
@@ -152,7 +153,7 @@ impl Client {
                 .json::<UpdateInjectResponse>()
                 .map_err(|e| Error::Internal(e.to_string()))
         } else if response.status().is_client_error() && retry > 0 {
-            sleep(Duration::from_secs(1));
+            sleep(Duration::from_secs(10));
             info!("retry {retry:?} to update status for inject id: {inject_id:?} and agent id: {agent_id:?}");
             self.update_status_retry(inject_id, agent_id, input, retry - 1)
         } else {
@@ -172,17 +173,17 @@ impl Client {
             Ok(response) => {
                 if response.status().is_success() {
                     let name = extract_filename(&response)?;
-                    let output_path = get_output_path(&name)?;
-
+                    let decoded_name = decode_filename(&name)?;
+                    let output_path = get_output_path(&decoded_name)?;
                     if in_memory {
                         let buf = BufWriter::new(Vec::new());
                         let _ = write_response(buf, response);
-                        Ok(name)
+                        Ok(decoded_name)
                     } else {
-                        let output_file = File::create(output_path.clone()).unwrap();
+                        let output_file = File::create(output_path.clone())?;
                         let file_write = write_response(output_file, response);
                         match file_write {
-                            Ok(_) => Ok(name),
+                            Ok(_) => Ok(decoded_name),
                             Err(err) => {
                                 let _ = fs::remove_file(output_path.clone());
                                 Err(Error::Io(err))

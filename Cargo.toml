@@ -1,5 +1,5 @@
 [package]
-name = "openbas-implant"
+name = "openaev-implant"
 version = "1.18.20"
 edition = "2021"
 
@@ -15,6 +15,7 @@ tracing-appender = "0.2.3"
 rolling-file = "0.2.0"
 clap = { version = "4.5.7", features = ["derive"] }
 mailparse = "0.16.0"
+percent-encoding ="2.3.2"
 
 [dev-dependencies]
 mockito = "1.7.0"

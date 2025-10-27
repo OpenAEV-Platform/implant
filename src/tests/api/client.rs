@@ -16,7 +16,7 @@ mod tests {
             .mock("POST", "/api/test")
             .match_header(
                 "user-agent",
-                format!("openbas-implant/{}", crate::api::VERSION).as_str(),
+                format!("openaev-implant/{}", crate::api::VERSION).as_str(),
             )
             .match_header(
                 AUTHORIZATION_HEADER,

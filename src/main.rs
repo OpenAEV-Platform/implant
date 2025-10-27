@@ -2,8 +2,8 @@ use clap::{arg, Parser};
 use log::{error, info};
 use rolling_file::{BasicRollingFileAppender, RollingConditionBasic};
 use std::env;
-use std::ops::Deref;
 use std::fs::create_dir_all;
+use std::ops::Deref;
 use std::panic;
 use std::sync::atomic::AtomicBool;
 use std::time::Instant;
@@ -27,7 +27,7 @@ mod tests;
 pub static THREADS_CONTROL: AtomicBool = AtomicBool::new(true);
 const ENV_PRODUCTION: &str = "production";
 const VERSION: &str = env!("CARGO_PKG_VERSION");
-const PREFIX_LOG_NAME: &str = "openbas-implant.log";
+const PREFIX_LOG_NAME: &str = "openaev-implant.log";
 
 #[derive(Parser, Debug)]
 #[command(version, about, long_about = None)]
@@ -67,8 +67,25 @@ pub fn set_error_hook() {
                 .copied()
                 .unwrap_or("<cause unknown>")
         });
-
         error!("An error occurred in file {filename:?} line {line:?}: {cause:?}");
+        // Send the error and logs to OpenAEV for the inject and agent concerned
+        let args = Args::parse();
+        let api = Client::new(
+            args.uri,
+            args.token,
+            args.unsecured_certificate == "true",
+            args.with_proxy == "true",
+        );
+        let _ = api.update_status(
+            args.inject_id,
+            args.agent_id,
+            UpdateInput {
+                execution_message: String::from(cause),
+                execution_status: String::from("ERROR"),
+                execution_duration: 0,
+                execution_action: String::from("complete"),
+            },
+        );
     }));
 }
 
@@ -217,7 +234,13 @@ fn main() -> Result<(), Error> {
 
     // Resolve the payloads path and create it on the fly
     let folder_name = parent_path.file_name().unwrap().to_str().unwrap();
-    let payloads_path = parent_path.parent().unwrap().parent().unwrap().join("payloads").join(folder_name);
+    let payloads_path = parent_path
+        .parent()
+        .unwrap()
+        .parent()
+        .unwrap()
+        .join("payloads")
+        .join(folder_name);
     create_dir_all(payloads_path).expect("Unable to create payload directory");
 
     let condition = RollingConditionBasic::new().daily();
@@ -231,7 +254,7 @@ fn main() -> Result<(), Error> {
     // region Process execution
 
     let args = Args::parse();
-    info!("Starting OpenBAS implant {} {}", VERSION, mode());
+    info!("Starting OpenAEV implant {} {}", VERSION, mode());
     let api = Client::new(
         args.uri,
         args.token,
