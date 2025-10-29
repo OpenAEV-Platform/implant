@@ -28,7 +28,7 @@ jobs:
         working-directory: client-python
     steps:
       - name: checkout repo content
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
         with:
           repository: OpenAEV-Platform/client-python
           ref: ${{ inputs.branch_implant }}
