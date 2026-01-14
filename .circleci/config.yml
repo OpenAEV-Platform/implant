@@ -152,8 +152,8 @@ jobs:
       - run: sudo apt-get update
       - run: sudo apt-get -y install curl musl-tools
       - run: curl https://sh.rustup.rs -sSf | sh -s -- -y
-      - run: . "$HOME/.cargo/env"; rustup toolchain install <<pipeline.parameters.pinned-rust-version>>-x86_64-unknown-linux-musl
-      - run: . "$HOME/.cargo/env"; rustup default <<pipeline.parameters.pinned-rust-version>>-x86_64-unknown-linux-musl
+      - run: . "$HOME/.cargo/env"; rustup toolchain install <<pipeline.parameters.pinned-rust-version>>-x86_64-unknown-linux-gnu
+      - run: . "$HOME/.cargo/env"; rustup default <<pipeline.parameters.pinned-rust-version>>-x86_64-unknown-linux-gnu
       - run: . "$HOME/.cargo/env"; rustup target add x86_64-unknown-linux-musl
       # Install quality tools
       - run: |
@@ -218,8 +218,8 @@ jobs:
       - run: sudo apt-get update
       - run: sudo apt-get -y install curl musl-tools
       - run: curl https://sh.rustup.rs -sSf | sh -s -- -y
-      - run: . "$HOME/.cargo/env"; rustup toolchain install <<pipeline.parameters.pinned-rust-version>>-aarch64-unknown-linux-musl
-      - run: . "$HOME/.cargo/env"; rustup default <<pipeline.parameters.pinned-rust-version>>-x86_64-aarch64-unknown-linux-musl
+      - run: . "$HOME/.cargo/env"; rustup toolchain install <<pipeline.parameters.pinned-rust-version>>-aarch64-unknown-linux-gnu
+      - run: . "$HOME/.cargo/env"; rustup default <<pipeline.parameters.pinned-rust-version>>-x86_64-aarch64-unknown-linux-gnu
       - run: . "$HOME/.cargo/env"; rustup target add aarch64-unknown-linux-musl
       # Install quality tools
       - run: |
@@ -254,8 +254,8 @@ jobs:
       - run: sudo apt-get update
       - run: sudo apt-get -y install curl musl-tools
       - run: curl https://sh.rustup.rs -sSf | sh -s -- -y
-      - run: . "$HOME/.cargo/env"; rustup toolchain install <<pipeline.parameters.pinned-rust-version>>-aarch64-unknown-linux-musl
-      - run: . "$HOME/.cargo/env"; rustup default <<pipeline.parameters.pinned-rust-version>>-x86_64-aarch64-unknown-linux-musl
+      - run: . "$HOME/.cargo/env"; rustup toolchain install <<pipeline.parameters.pinned-rust-version>>-aarch64-unknown-linux-gnu
+      - run: . "$HOME/.cargo/env"; rustup default <<pipeline.parameters.pinned-rust-version>>-x86_64-aarch64-unknown-linux-gnu
       - run: . "$HOME/.cargo/env"; rustup target add aarch64-unknown-linux-musl
       - run: . "$HOME/.cargo/env"; cargo build --target=aarch64-unknown-linux-musl --release
       - run: . "$HOME/.cargo/env"; cargo test --release
