@@ -4,6 +4,11 @@ orbs:
   win: circleci/windows@5.1.1
   macos: circleci/macos@2.5.4
 
+parameters:
+  pinned-rust-version:
+    type: string
+    default: "1.91"
+
 jobs:
   windows_x86_64_compile:
     executor: win/default
@@ -15,8 +20,8 @@ jobs:
             - cargo-{{ arch }}
       - run: curl.exe --output rustup-init.exe --url https://static.rust-lang.org/rustup/dist/x86_64-pc-windows-msvc/rustup-init.exe
       - run: ./rustup-init.exe -vy
-      - run: rustup toolchain install stable-x86_64-pc-windows-msvc
-      - run: rustup default stable-x86_64-pc-windows-msvc
+      - run: rustup toolchain install <<pipeline.parameters.pinned-rust-version>>-x86_64-pc-windows-msvc
+      - run: rustup default <<pipeline.parameters.pinned-rust-version>>-x86_64-pc-windows-msvc
       - run: choco uninstall rust
       - run: choco install -y mingw --version=13.2.0
       - run: choco install -y nsis
@@ -51,8 +56,8 @@ jobs:
       - run: choco install -y nsis
       - run: curl.exe --output rustup-init.exe --url https://static.rust-lang.org/rustup/dist/x86_64-pc-windows-gnu/rustup-init.exe
       - run: ./rustup-init.exe -vy
-      - run: rustup toolchain install stable-x86_64-pc-windows-msvc
-      - run: rustup default stable-x86_64-pc-windows-msvc
+      - run: rustup toolchain install <<pipeline.parameters.pinned-rust-version>>-x86_64-pc-windows-msvc
+      - run: rustup default <<pipeline.parameters.pinned-rust-version>>-x86_64-pc-windows-msvc
       - run: cargo build --release
       - run: cargo test --release
       - run:
@@ -81,8 +86,8 @@ jobs:
       - run: ./vs_buildtools.exe --add Microsoft.VisualStudio.Component.Clang --add Microsoft.VisualStudio.Component.VC.tools.arm64 --wait --includeRecommended --quiet --norestart
       - run: curl.exe --output rustup-init.exe --url https://static.rust-lang.org/rustup/dist/aarch64-pc-windows-msvc/rustup-init.exe
       - run: ./rustup-init.exe -vy
-      - run: Invoke-Expression '& "$env:USERPROFILE\.cargo\bin\rustup" toolchain install stable-aarch64-pc-windows-msvc'
-      - run: Invoke-Expression '& "$env:USERPROFILE\.cargo\bin\rustup" default stable-aarch64-pc-windows-msvc'
+      - run: Invoke-Expression '& "$env:USERPROFILE\.cargo\bin\rustup" toolchain install <<pipeline.parameters.pinned-rust-version>>-aarch64-pc-windows-msvc'
+      - run: Invoke-Expression '& "$env:USERPROFILE\.cargo\bin\rustup" default <<pipeline.parameters.pinned-rust-version>>-aarch64-pc-windows-msvc'
       # Install quality tools
       - run: |
           $env:PATH = "C:\Program Files (x86)\Microsoft Visual Studio\2022\BuildTools\VC\Tools\Llvm\ARM64\bin;" + $env:PATH;
@@ -119,8 +124,8 @@ jobs:
       - run: ./vs_buildtools.exe --add Microsoft.VisualStudio.Component.Clang --add Microsoft.VisualStudio.Component.VC.tools.arm64 --wait --includeRecommended --quiet --norestart
       - run: curl.exe --output rustup-init.exe --url https://static.rust-lang.org/rustup/dist/aarch64-pc-windows-msvc/rustup-init.exe
       - run: ./rustup-init.exe -vy
-      - run: Invoke-Expression '& "$env:USERPROFILE\.cargo\bin\rustup" toolchain install stable-aarch64-pc-windows-msvc'
-      - run: Invoke-Expression '& "$env:USERPROFILE\.cargo\bin\rustup" default stable-aarch64-pc-windows-msvc'
+      - run: Invoke-Expression '& "$env:USERPROFILE\.cargo\bin\rustup" toolchain install <<pipeline.parameters.pinned-rust-version>>-aarch64-pc-windows-msvc'
+      - run: Invoke-Expression '& "$env:USERPROFILE\.cargo\bin\rustup" default <<pipeline.parameters.pinned-rust-version>>-aarch64-pc-windows-msvc'
       - run: $env:PATH = "C:\Program Files (x86)\Microsoft Visual Studio\2022\BuildTools\VC\Tools\Llvm\ARM64\bin;" + $env:PATH; Invoke-Expression '& "$env:USERPROFILE\.cargo\bin\cargo" build --release'
       - run: $env:PATH = "C:\Program Files (x86)\Microsoft Visual Studio\2022\BuildTools\VC\Tools\Llvm\ARM64\bin;" + $env:PATH; Invoke-Expression '& "$env:USERPROFILE\.cargo\bin\cargo" test --release'
       - run:
@@ -147,6 +152,8 @@ jobs:
       - run: sudo apt-get update
       - run: sudo apt-get -y install curl musl-tools
       - run: curl https://sh.rustup.rs -sSf | sh -s -- -y
+      - run: . "$HOME/.cargo/env"; rustup toolchain install <<pipeline.parameters.pinned-rust-version>>-x86_64-unknown-linux-musl
+      - run: . "$HOME/.cargo/env"; rustup default <<pipeline.parameters.pinned-rust-version>>-x86_64-unknown-linux-musl
       - run: . "$HOME/.cargo/env"; rustup target add x86_64-unknown-linux-musl
       # Install quality tools
       - run: |
@@ -180,6 +187,8 @@ jobs:
       - run: sudo apt-get update
       - run: sudo apt-get -y install curl musl-tools
       - run: curl https://sh.rustup.rs -sSf | sh -s -- -y
+      - run: . "$HOME/.cargo/env"; rustup toolchain install <<pipeline.parameters.pinned-rust-version>>-x86_64-unknown-linux-gnu
+      - run: . "$HOME/.cargo/env"; rustup default <<pipeline.parameters.pinned-rust-version>>-x86_64-unknown-linux-gnu
       - run: . "$HOME/.cargo/env"; rustup target add x86_64-unknown-linux-musl
       - run: . "$HOME/.cargo/env"; cargo build --target=x86_64-unknown-linux-musl --release
       - run: . "$HOME/.cargo/env"; cargo test --release
@@ -209,6 +218,8 @@ jobs:
       - run: sudo apt-get update
       - run: sudo apt-get -y install curl musl-tools
       - run: curl https://sh.rustup.rs -sSf | sh -s -- -y
+      - run: . "$HOME/.cargo/env"; rustup toolchain install <<pipeline.parameters.pinned-rust-version>>-aarch64-unknown-linux-musl
+      - run: . "$HOME/.cargo/env"; rustup default <<pipeline.parameters.pinned-rust-version>>-x86_64-aarch64-unknown-linux-musl
       - run: . "$HOME/.cargo/env"; rustup target add aarch64-unknown-linux-musl
       # Install quality tools
       - run: |
@@ -243,6 +254,8 @@ jobs:
       - run: sudo apt-get update
       - run: sudo apt-get -y install curl musl-tools
       - run: curl https://sh.rustup.rs -sSf | sh -s -- -y
+      - run: . "$HOME/.cargo/env"; rustup toolchain install <<pipeline.parameters.pinned-rust-version>>-aarch64-unknown-linux-musl
+      - run: . "$HOME/.cargo/env"; rustup default <<pipeline.parameters.pinned-rust-version>>-x86_64-aarch64-unknown-linux-musl
       - run: . "$HOME/.cargo/env"; rustup target add aarch64-unknown-linux-musl
       - run: . "$HOME/.cargo/env"; cargo build --target=aarch64-unknown-linux-musl --release
       - run: . "$HOME/.cargo/env"; cargo test --release
@@ -270,6 +283,8 @@ jobs:
             - cargo-{{ arch }}-{{ checksum "Cargo.toml" }}
             - cargo-{{ arch }}
       - run: curl https://sh.rustup.rs -sSf | sh -s -- -y
+      - run: rustup toolchain install <<pipeline.parameters.pinned-rust-version>>-aarch64-apple-darwin
+      - run: rustup default <<pipeline.parameters.pinned-rust-version>>-aarch64-apple-darwin
       # Install quality tools
       - run: |
           rustup component add clippy
@@ -301,6 +316,8 @@ jobs:
             - cargo-{{ arch }}-{{ checksum "Cargo.toml" }}
             - cargo-{{ arch }}
       - run: curl https://sh.rustup.rs -sSf | sh -s -- -y
+      - run: rustup toolchain install <<pipeline.parameters.pinned-rust-version>>-aarch64-apple-darwin
+      - run: rustup default <<pipeline.parameters.pinned-rust-version>>-aarch64-apple-darwin
       - run: . "$HOME/.cargo/env"; cargo build --release
       - run: . "$HOME/.cargo/env"; cargo test --release
       - run: strip ./target/release/openaev-implant
@@ -326,8 +343,8 @@ jobs:
             - cargo-{{ arch }}-{{ checksum "Cargo.toml" }}
             - cargo-{{ arch }}
       - run: curl https://sh.rustup.rs -sSf | sh -s -- -y
-      - run: rustup toolchain install stable-x86_64-apple-darwin
-      - run: rustup default stable-x86_64-apple-darwin
+      - run: rustup toolchain install <<pipeline.parameters.pinned-rust-version>>-x86_64-apple-darwin
+      - run: rustup default <<pipeline.parameters.pinned-rust-version>>-x86_64-apple-darwin
       # Install quality tools
       - run: |
           rustup component add clippy
@@ -358,8 +375,8 @@ jobs:
             - cargo-{{ arch }}-{{ checksum "Cargo.toml" }}
             - cargo-{{ arch }}
       - run: curl https://sh.rustup.rs -sSf | sh -s -- -y
-      - run: rustup toolchain install stable-x86_64-apple-darwin
-      - run: rustup default stable-x86_64-apple-darwin
+      - run: rustup toolchain install <<pipeline.parameters.pinned-rust-version>>-x86_64-apple-darwin
+      - run: rustup default <<pipeline.parameters.pinned-rust-version>>-x86_64-apple-darwin
       - run: . "$HOME/.cargo/env"; cargo build --release
       - run: . "$HOME/.cargo/env"; cargo test --release
       - run: strip ./target/release/openaev-implant
