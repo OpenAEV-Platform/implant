@@ -40,11 +40,10 @@ jobs:
         run: sudo apt-get update && sudo apt-get install -y musl-tools
 
       - name: Set up Rust
-        uses: actions-rs/toolchain@v1
+        uses: dtolnay/rust-toolchain@stable
         with:
-          toolchain: stable
-          target: ${{ matrix.target }}
-          override: true
+          targets: ${{ matrix.target }}
+          components: clippy,rustfmt
 
       - name: Cache
         uses: actions/cache@v4
@@ -56,11 +55,6 @@ jobs:
             ~/.cargo/git/db/
             target/
           key: cargo-${{ runner.os }}-${{ matrix.arch }}-${{ hashFiles('Cargo.lock') }}
-
-      - name: Install clippy & rustfmt
-        run: |
-          rustup component add clippy
-          rustup component add rustfmt
 
       - name: Run cargo fmt
         run: cargo fmt -- --check
