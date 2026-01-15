@@ -1,4 +1,4 @@
-use clap::{arg, Parser};
+use clap::Parser;
 use log::{error, info};
 use rolling_file::{BasicRollingFileAppender, RollingConditionBasic};
 use std::env;
