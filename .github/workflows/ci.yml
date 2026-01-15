@@ -1,0 +1,99 @@
+name: "CI"
+
+on:
+  push:
+    branches: [main, release/current]
+  pull_request:
+    branches: [main, release/current]
+
+jobs:
+  build:
+    name: Lint, Build & Test
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        include:
+          - os: ubuntu-latest
+            arch: x86_64
+            target: x86_64-unknown-linux-musl
+          - os: ubuntu-24.04-arm
+            arch: arm64
+            target: aarch64-unknown-linux-musl
+          - os: windows-latest
+            arch: x86_64
+            target: x86_64-pc-windows-msvc
+          - os: windows-latest
+            arch: arm64
+            target: aarch64-pc-windows-msvc
+          - os: macos-15-intel
+            arch: x86_64
+            target: x86_64-apple-darwin
+          - os: macos-latest
+            arch: arm64
+            target: aarch64-apple-darwin
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Install musl-tools
+        if: contains(matrix.target, 'musl')
+        run: sudo apt-get update && sudo apt-get install -y musl-tools
+
+      - name: Set up Rust
+        uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
+          target: ${{ matrix.target }}
+          override: true
+
+      - name: Cache
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/bin/
+            ~/.cargo/registry/index/
+            ~/.cargo/registry/cache/
+            ~/.cargo/git/db/
+            target/
+          key: cargo-${{ runner.os }}-${{ matrix.arch }}-${{ hashFiles('Cargo.lock') }}
+
+      - name: Install clippy & rustfmt
+        run: |
+          rustup component add clippy
+          rustup component add rustfmt
+
+      - name: Run cargo fmt
+        run: cargo fmt -- --check
+
+      - name: Run cargo clippy
+        run: cargo clippy -- -D warnings
+
+      - name: Install cargo audit
+        run: |
+          if [ -x "$HOME/.cargo/bin/cargo-audit" ] || [ -x "$USERPROFILE\.cargo\bin\cargo-audit.exe" ]; then
+            echo "cargo-audit already installed."
+          else
+            cargo install cargo-audit --locked
+          fi
+        shell: bash
+
+      - name: Run cargo audit
+        run: cargo audit
+
+      - name: Build
+        run: cargo build
+
+      - name: Test
+        run: cargo test
+
+      - name: Install cargo cache
+        run: |
+          if [ -x "$HOME/.cargo/bin/cargo-cache" ] || [ -x "$USERPROFILE\.cargo\bin\cargo-cache.exe" ]; then
+            echo "cargo-cache already installed."
+          else
+            cargo install cargo-cache --locked
+          fi
+        shell: bash
+
+      - name: Run cargo cache
+        run: cargo cache -a -l || true
