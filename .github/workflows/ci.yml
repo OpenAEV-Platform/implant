@@ -75,10 +75,22 @@ jobs:
         run: cargo audit
 
       - name: Build
-        run: cargo build --release
+        run: |
+          if [[ "$GITHUB_EVENT_NAME" == "push" ]]; then
+            cargo build --release --locked
+          else
+            cargo build --locked
+          fi
+        shell: bash
 
       - name: Test
-        run: cargo test --release
+        run: |
+          if [[ "$GITHUB_EVENT_NAME" == "push" ]]; then
+            cargo test --release --locked
+          else
+            cargo test --locked
+          fi
+        shell: bash
 
       - name: Install cargo cache
         run: |
