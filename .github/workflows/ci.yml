@@ -93,7 +93,7 @@ jobs:
           if [[ "$GITHUB_EVENT_NAME" == "push" ]]; then
             cargo build --release --locked
           else
-            cargo build --locked
+            cargo build --release --locked
           fi
           ls ./target
         shell: bash
@@ -103,7 +103,7 @@ jobs:
           if [[ "$GITHUB_EVENT_NAME" == "push" ]]; then
             cargo test --release --locked
           else
-            cargo test --locked
+            cargo test --release --locked
           fi
         shell: bash
 
