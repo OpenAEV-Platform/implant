@@ -91,9 +91,9 @@ jobs:
       - name: Build
         run: |
           if [[ "$GITHUB_EVENT_NAME" == "push" ]]; then
-            cargo build --release --locked
+            cargo build --target=${{ matrix.target }} --release --locked
           else
-            cargo build --release --locked
+            cargo build --target=${{ matrix.target }} --release --locked
           fi
           ls ./target
         shell: bash
