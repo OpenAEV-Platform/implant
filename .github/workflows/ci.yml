@@ -117,10 +117,11 @@ jobs:
           else
             version="prerelease"
           fi
+          exe_ext=$([ "${{ matrix.os }}" = "windows" ] && echo ".exe" || echo "")
           curl --fail-with-body \
             -u samuel.hassine@filigran.io:${{ secrets.JFROG_TOKEN }} \
-            -T ./target/${{ matrix.target }}/release/openaev-implant${{ matrix.os == 'windows' ? '.exe' : '' }} \
-            "https://filigran.jfrog.io/artifactory/openaev-implant/${{ matrix.jfrog_path}}/openaev-implant-$version${{ matrix.os == 'windows' ? '.exe' : '' }}"
+            -T ./target/${{ matrix.target }}/release/openaev-implant${exe_ext} \
+            "https://filigran.jfrog.io/artifactory/openaev-implant/${{ matrix.jfrog_path}}/openaev-implant-$version${exe_ext}"
         shell: bash
 
       - name: Install cargo cache
