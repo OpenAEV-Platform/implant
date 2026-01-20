@@ -3,34 +3,48 @@ name: "CI"
 on:
   push:
     branches: [main, release/current]
+    tags:
+      - "[0-9]+.[0-9]+.[0-9]+"
   pull_request:
     branches: [main, release/current]
 
 jobs:
   build:
     name: Lint, Build & Test
-    runs-on: ${{ matrix.os }}
+    runs-on: ${{ matrix.runner }}
     strategy:
       matrix:
         include:
-          - os: ubuntu-latest
+          - runner: ubuntu-latest
+            os: ubuntu
             arch: x86_64
             target: x86_64-unknown-linux-musl
-          - os: ubuntu-24.04-arm
+            jfrog_path: linux/x86_64
+          - runner: ubuntu-24.04-arm
+            os: ubuntu
             arch: arm64
             target: aarch64-unknown-linux-musl
-          - os: windows-latest
+            jfrog_path: linux/arm64
+          - runner: windows-latest
+            os: windows
             arch: x86_64
             target: x86_64-pc-windows-msvc
-          - os: windows-latest
+            jfrog_path: windows/x86_64
+          - runner: windows-11-arm
+            os: windows
             arch: arm64
             target: aarch64-pc-windows-msvc
-          - os: macos-15-intel
+            jfrog_path: windows/arm64
+          - runner: macos-15-intel
+            os: macos
             arch: x86_64
             target: x86_64-apple-darwin
-          - os: macos-latest
+            jfrog_path: macos/x86_64
+          - runner: macos-latest
+            os: macos
             arch: arm64
             target: aarch64-apple-darwin
+            jfrog_path: macos/arm64
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -81,6 +95,7 @@ jobs:
           else
             cargo build --locked
           fi
+          cat ./target
         shell: bash
 
       - name: Test
@@ -90,6 +105,22 @@ jobs:
           else
             cargo test --locked
           fi
+        shell: bash
+
+      - name: Push to JFrog
+        if: github.event_name == 'push'
+        run: |
+          if [ "${GITHUB_REF_TYPE}" = "tag" ]; then
+            version="${GITHUB_REF_NAME}"
+          elif [ "${GITHUB_REF_NAME}" = "main" ]; then
+            version="latest"
+          else
+            version="prerelease"
+          fi
+          curl --fail-with-body \
+            -u samuel.hassine@filigran.io:${{ secrets.JFROG_TOKEN }} \
+            -T ./target/${{ matrix.target }}/release/openaev-implant${{ matrix.os == 'windows' ? '.exe' : '' }} \
+            "https://filigran.jfrog.io/artifactory/openaev-implant/${{ matrix.jfrog_path}}/openaev-implant-$version${{ matrix.os == 'windows' ? '.exe' : '' }}"
         shell: bash
 
       - name: Install cargo cache
