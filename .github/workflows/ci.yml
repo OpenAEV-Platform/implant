@@ -95,7 +95,7 @@ jobs:
           else
             cargo build --locked
           fi
-          cat ./target
+          ls ./target
         shell: bash
 
       - name: Test
