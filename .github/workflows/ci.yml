@@ -12,6 +12,8 @@ jobs:
   build:
     name: Lint, Build & Test
     runs-on: ${{ matrix.runner }}
+    env:
+      IS_MUSL_UBUNTU: ${{ (matrix.os == 'ubuntu' && contains(matrix.target, 'musl')) }}
     strategy:
       matrix:
         include:
@@ -50,7 +52,7 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Install musl-tools
-        if: contains(matrix.target, 'musl')
+        if: env.IS_MUSL_UBUNTU == 'true'
         run: sudo apt-get update && sudo apt-get install -y musl-tools
 
       - name: Set up Rust
@@ -91,9 +93,17 @@ jobs:
       - name: Build
         run: |
           if [[ "$GITHUB_EVENT_NAME" == "push" ]]; then
-            cargo build --target=${{ matrix.target }} --release --locked
+            if [ "$IS_MUSL_UBUNTU" = true ]; then
+              cargo build --target=${{ matrix.target }} --release --locked
+            else
+              cargo build --release --locked
+            fi
           else
-            cargo build --target=${{ matrix.target }} --release --locked
+            if [ "$IS_MUSL_UBUNTU" = true ]; then
+              cargo build --target=${{ matrix.target }} --release --locked
+            else
+              cargo build --release --locked
+            fi
           fi
           ls ./target
         shell: bash
@@ -118,9 +128,14 @@ jobs:
             version="prerelease"
           fi
           exe_ext=$([ "${{ matrix.os }}" = "windows" ] && echo ".exe" || echo "")
+          if [ "$IS_MUSL_UBUNTU" = true ]; then
+            artifact_path=./target/${{ matrix.target }}/release/openaev-implant${exe_ext}
+          else
+            artifact_path=./target/release/openaev-implant${exe_ext}
+          fi
           curl --fail-with-body \
             -u samuel.hassine@filigran.io:${{ secrets.JFROG_TOKEN }} \
-            -T ./target/${{ matrix.target }}/release/openaev-implant${exe_ext} \
+            -T "$artifact_path" \
             "https://filigran.jfrog.io/artifactory/openaev-implant/${{ matrix.jfrog_path}}/openaev-implant-$version${exe_ext}"
         shell: bash
 
