@@ -94,15 +94,15 @@ jobs:
         run: |
           if [[ "$GITHUB_EVENT_NAME" == "push" ]]; then
             if [ "$IS_MUSL_UBUNTU" = true ]; then
-              RUSTFLAGS="-C strip=symbols" cargo build --target=${{ matrix.target }} --release --locked
+              cargo build --target=${{ matrix.target }} --release --locked
             else
-              RUSTFLAGS="-C strip=symbols" cargo build --release --locked
+              cargo build --release --locked
             fi
           else
             if [ "$IS_MUSL_UBUNTU" = true ]; then
-              RUSTFLAGS="-C strip=symbols" cargo build --target=${{ matrix.target }} --release --locked
+              cargo build --target=${{ matrix.target }} --release --locked
             else
-              RUSTFLAGS="-C strip=symbols" cargo build --release --locked
+              cargo build --release --locked
             fi
           fi
           ls ./target
@@ -117,6 +117,18 @@ jobs:
           fi
         shell: bash
 
+      - name: Install cargo cache
+        run: |
+          if [ -x "$HOME/.cargo/bin/cargo-cache" ] || [ -x "$USERPROFILE\.cargo\bin\cargo-cache.exe" ]; then
+            echo "cargo-cache already installed."
+          else
+            cargo install cargo-cache --locked
+          fi
+        shell: bash
+
+      - name: Run cargo cache
+        run: cargo cache -a -l || true
+
       - name: Push to JFrog
         # if: github.event_name == 'push'
         run: |
@@ -130,9 +142,16 @@ jobs:
 
           version="latest"
 
-          exe_ext=$([ "${{ matrix.os }}" = "windows" ] && echo ".exe" || echo "")
           if [ "$IS_MUSL_UBUNTU" = true ]; then
             strip ./target/${{ matrix.target }}/release/openaev-implant
+          fi
+
+          if [ "${{ matrix.os }}" = "macos" ] then
+            strip ./target/release/openaev-implant
+          fi
+
+          exe_ext=$([ "${{ matrix.os }}" = "windows" ] && echo ".exe" || echo "")
+          if [ "$IS_MUSL_UBUNTU" = true ]; then
             artifact_path=./target/${{ matrix.target }}/release/openaev-implant${exe_ext}
           else
             artifact_path=./target/release/openaev-implant${exe_ext}
@@ -142,15 +161,3 @@ jobs:
             -T "$artifact_path" \
             "https://filigran.jfrog.io/artifactory/openaev-implant/${{ matrix.jfrog_path}}/openaev-implant-$version${exe_ext}"
         shell: bash
-
-      - name: Install cargo cache
-        run: |
-          if [ -x "$HOME/.cargo/bin/cargo-cache" ] || [ -x "$USERPROFILE\.cargo\bin\cargo-cache.exe" ]; then
-            echo "cargo-cache already installed."
-          else
-            cargo install cargo-cache --locked
-          fi
-        shell: bash
-
-      - name: Run cargo cache
-        run: cargo cache -a -l || true
