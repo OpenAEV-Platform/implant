@@ -94,9 +94,9 @@ jobs:
         run: |
           if [[ "$GITHUB_EVENT_NAME" == "push" ]]; then
             if [ "$IS_MUSL_UBUNTU" = true ]; then
-              cargo build --target=${{ matrix.target }} --release --locked
+              RUSTFLAGS="-C strip=symbols" cargo build --target=${{ matrix.target }} --release --locked
             else
-              cargo build --release --locked
+              RUSTFLAGS="-C strip=symbols" cargo build --release --locked
             fi
           else
             if [ "$IS_MUSL_UBUNTU" = true ]; then
@@ -129,13 +129,6 @@ jobs:
           fi
 
           version="latest"
-
-          if [ "$IS_MUSL_UBUNTU" = true ]; then
-            strip ./target/${{ matrix.target }}/release/openaev-implant
-          fi
-          if [ "$matrix.os" = true ]; then
-            strip ./target/release/openaev-implant
-          fi
 
           exe_ext=$([ "${{ matrix.os }}" = "windows" ] && echo ".exe" || echo "")
           if [ "$IS_MUSL_UBUNTU" = true ]; then
