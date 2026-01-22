@@ -13,3 +13,10 @@ pub struct ExecutionOutput {
     pub stderr: String,
     pub exit_code: i32,
 }
+
+pub struct ExecutionParam {
+    pub semantic: String,
+    pub inject_id: String,
+    pub agent_id: String,
+    pub max_size: usize,
+}
