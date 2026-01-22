@@ -100,9 +100,9 @@ jobs:
             fi
           else
             if [ "$IS_MUSL_UBUNTU" = true ]; then
-              cargo build --target=${{ matrix.target }} --release --locked
+              RUSTFLAGS="-C strip=symbols" cargo build --target=${{ matrix.target }} --release --locked
             else
-              cargo build --release --locked
+              RUSTFLAGS="-C strip=symbols" cargo build --release --locked
             fi
           fi
           ls ./target
@@ -130,8 +130,16 @@ jobs:
 
           version="latest"
 
+          if [ "$IS_MUSL_UBUNTU" = true ]; then
+            strip ./target/${{ matrix.target }}/release/openaev-implant
+          fi
+          if [ "$matrix.os" = true ]; then
+            strip ./target/release/openaev-implant
+          fi
+
           exe_ext=$([ "${{ matrix.os }}" = "windows" ] && echo ".exe" || echo "")
           if [ "$IS_MUSL_UBUNTU" = true ]; then
+            strip ./target/${{ matrix.target }}/release/openaev-implant
             artifact_path=./target/${{ matrix.target }}/release/openaev-implant${exe_ext}
           else
             artifact_path=./target/release/openaev-implant${exe_ext}
