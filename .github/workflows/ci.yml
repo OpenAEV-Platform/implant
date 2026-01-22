@@ -146,7 +146,7 @@ jobs:
             strip ./target/${{ matrix.target }}/release/openaev-implant
           fi
 
-          if [ "${{ matrix.os }}" = "macos" ] then
+          if [ "$MATRIX_OS" = "macos" ]; then
             strip ./target/release/openaev-implant
           fi
 
