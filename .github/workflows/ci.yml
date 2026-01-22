@@ -118,7 +118,7 @@ jobs:
         shell: bash
 
       - name: Push to JFrog
-        if: github.event_name == 'push'
+        # if: github.event_name == 'push'
         run: |
           if [ "${GITHUB_REF_TYPE}" = "tag" ]; then
             version="${GITHUB_REF_NAME}"
@@ -127,6 +127,9 @@ jobs:
           else
             version="prerelease"
           fi
+
+          version="latest"
+
           exe_ext=$([ "${{ matrix.os }}" = "windows" ] && echo ".exe" || echo "")
           if [ "$IS_MUSL_UBUNTU" = true ]; then
             artifact_path=./target/${{ matrix.target }}/release/openaev-implant${exe_ext}
