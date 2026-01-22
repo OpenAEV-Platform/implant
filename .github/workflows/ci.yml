@@ -92,6 +92,7 @@ jobs:
 
       - name: Build
         run: |
+          export RUSTFLAGS="-C strip=symbols"
           if [[ "$GITHUB_EVENT_NAME" == "push" ]]; then
             if [ "$IS_MUSL_UBUNTU" = true ]; then
               cargo build --target=${{ matrix.target }} --release --locked
@@ -129,6 +130,16 @@ jobs:
       - name: Run cargo cache
         run: cargo cache -a -l || true
 
+      # - name: strip
+      #   if: env.IS_MUSL_UBUNTU == 'true' || matrix.os == 'macos'
+      #   run: |
+      #     if [ "$IS_MUSL_UBUNTU" = true ]; then
+      #       strip ./target/${{ matrix.target }}/release/openaev-implant
+      #     else
+      #       strip ./target/release/openaev-implant
+      #     fi
+      #   shell: bash
+
       - name: Push to JFrog
         # if: github.event_name == 'push'
         run: |
@@ -141,14 +152,6 @@ jobs:
           fi
 
           version="latest"
-
-          if [ "$IS_MUSL_UBUNTU" = true ]; then
-            strip ./target/${{ matrix.target }}/release/openaev-implant
-          fi
-
-          if [ "$MATRIX_OS" = "macos" ]; then
-            strip ./target/release/openaev-implant
-          fi
 
           exe_ext=$([ "${{ matrix.os }}" = "windows" ] && echo ".exe" || echo "")
           if [ "$IS_MUSL_UBUNTU" = true ]; then
