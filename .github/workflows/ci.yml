@@ -17,34 +17,34 @@ jobs:
     strategy:
       matrix:
         include:
-          - runner: ubuntu-latest
-            os: ubuntu
+          - os: ubuntu
             arch: x86_64
+            runner: ubuntu-latest
             target: x86_64-unknown-linux-musl
             jfrog_path: linux/x86_64
-          - runner: ubuntu-24.04-arm
-            os: ubuntu
+          - os: ubuntu
             arch: arm64
+            runner: ubuntu-24.04-arm
             target: aarch64-unknown-linux-musl
             jfrog_path: linux/arm64
-          - runner: windows-latest
-            os: windows
+          - os: windows
             arch: x86_64
+            runner: windows-latest
             target: x86_64-pc-windows-msvc
             jfrog_path: windows/x86_64
-          - runner: windows-11-arm
-            os: windows
+          - os: windows
             arch: arm64
+            runner: windows-11-arm
             target: aarch64-pc-windows-msvc
             jfrog_path: windows/arm64
-          - runner: macos-15-intel
-            os: macos
+          - os: macos
             arch: x86_64
+            runner: macos-15-intel
             target: x86_64-apple-darwin
             jfrog_path: macos/x86_64
-          - runner: macos-latest
-            os: macos
+          - os: macos
             arch: arm64
+            runner: macos-latest
             target: aarch64-apple-darwin
             jfrog_path: macos/arm64
     steps:
