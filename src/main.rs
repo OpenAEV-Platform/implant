@@ -1,4 +1,4 @@
-use clap::{arg, Parser};
+use clap::Parser;
 use log::{error, info};
 use rolling_file::{BasicRollingFileAppender, RollingConditionBasic};
 use std::env;
@@ -15,6 +15,7 @@ use crate::handle::handle_command::{compute_command, handle_command, handle_exec
 use crate::handle::handle_dns_resolution::handle_dns_resolution;
 use crate::handle::handle_file_drop::handle_file_drop;
 use crate::handle::handle_file_execute::handle_file_execute;
+use crate::handle::ExecutionParam;
 
 mod api;
 mod common;
@@ -45,6 +46,8 @@ struct Args {
     agent_id: String,
     #[arg(short, long)]
     inject_id: String,
+    #[arg(short, long, default_value = "1000000")]
+    max_size: Option<usize>,
 }
 
 // Get and log all errors from the implant execution
@@ -99,6 +102,7 @@ pub fn handle_payload(
     api: &Client,
     contract_payload: &InjectorContractPayload,
     duration: Instant,
+    max_size: usize,
 ) {
     let mut prerequisites_code = 0;
     let mut execution_message = "Payload completed";
@@ -135,10 +139,13 @@ pub fn handle_payload(
         if check_cmd.is_some() && !check_cmd.clone().unwrap().is_empty() {
             let check_prerequisites = compute_command(check_cmd.as_ref().unwrap());
             check_status = handle_execution_command(
-                "prerequisite_check",
+                &ExecutionParam {
+                    semantic: String::from("prerequisite_check"),
+                    inject_id: inject_id.clone(),
+                    agent_id: agent_id.clone(),
+                    max_size,
+                },
                 api,
-                inject_id.clone(),
-                agent_id.clone(),
                 &check_prerequisites,
                 &prerequisite.executor,
                 true,
@@ -148,10 +155,13 @@ pub fn handle_payload(
         if check_status != 0 {
             let install_prerequisites = compute_command(&prerequisite.get_command);
             prerequisites_code += handle_execution_command(
-                "prerequisite_execution",
+                &ExecutionParam {
+                    semantic: String::from("prerequisite_execution"),
+                    inject_id: inject_id.clone(),
+                    agent_id: agent_id.clone(),
+                    max_size,
+                },
                 api,
-                inject_id.clone(),
-                agent_id.clone(),
                 &install_prerequisites,
                 &prerequisite.executor,
                 false,
@@ -164,13 +174,23 @@ pub fn handle_payload(
     if prerequisites_code == 0 {
         let payload_type = &contract_payload.payload_type;
         match payload_type.as_str() {
-            "Command" => handle_command(inject_id.clone(), agent_id.clone(), api, contract_payload),
+            "Command" => handle_command(
+                inject_id.clone(),
+                agent_id.clone(),
+                api,
+                contract_payload,
+                max_size,
+            ),
             "DnsResolution" => {
                 handle_dns_resolution(inject_id.clone(), agent_id.clone(), api, contract_payload)
             }
-            "Executable" => {
-                handle_file_execute(inject_id.clone(), agent_id.clone(), api, contract_payload)
-            }
+            "Executable" => handle_file_execute(
+                inject_id.clone(),
+                agent_id.clone(),
+                api,
+                contract_payload,
+                max_size,
+            ),
             "FileDrop" => {
                 handle_file_drop(inject_id.clone(), agent_id.clone(), api, contract_payload)
             }
@@ -201,10 +221,13 @@ pub fn handle_payload(
             let executable_cleanup = compute_command(cleanup_value);
             let executor = contract_payload.payload_cleanup_executor.clone().unwrap();
             let _ = handle_execution_command(
-                "cleanup_execution",
+                &ExecutionParam {
+                    semantic: String::from("cleanup_execution"),
+                    inject_id: inject_id.clone(),
+                    agent_id: agent_id.clone(),
+                    max_size,
+                },
                 api,
-                inject_id.clone(),
-                agent_id.clone(),
                 &executable_cleanup,
                 &executor,
                 false,
@@ -269,6 +292,7 @@ fn main() -> Result<(), Error> {
         &api,
         &contract_payload,
         duration,
+        args.max_size.unwrap(),
     );
     // endregion
     Ok(())
