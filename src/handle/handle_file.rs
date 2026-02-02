@@ -6,6 +6,7 @@ use crate::api::manage_reporting::{report_error, report_success};
 use crate::api::Client;
 use crate::common::error_model::Error;
 use crate::handle::handle_execution::handle_execution_result;
+use crate::handle::ExecutionParam;
 use crate::process::file_exec::file_execution;
 
 pub fn handle_execution_file(
@@ -14,12 +15,23 @@ pub fn handle_execution_file(
     inject_id: String,
     agent_id: String,
     filename: &String,
+    max_size: usize,
 ) -> i32 {
     let now = Instant::now();
     info!("{semantic} execution: {filename:?}");
     let command_result = file_execution(filename.as_str());
     let elapsed = now.elapsed().as_millis();
-    handle_execution_result(semantic, api, inject_id, agent_id, command_result, elapsed)
+    handle_execution_result(
+        &ExecutionParam {
+            semantic: semantic.to_owned(),
+            inject_id,
+            agent_id,
+            max_size,
+        },
+        api,
+        command_result,
+        elapsed,
+    )
 }
 
 pub fn handle_file(

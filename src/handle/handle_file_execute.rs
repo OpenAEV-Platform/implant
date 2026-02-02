@@ -7,6 +7,7 @@ pub fn handle_file_execute(
     agent_id: String,
     api: &Client,
     contract_payload: &InjectorContractPayload,
+    max_size: usize,
 ) {
     let InjectorContractPayload {
         executable_file, ..
@@ -26,6 +27,7 @@ pub fn handle_file_execute(
                 inject_id.clone(),
                 agent_id.clone(),
                 &filename,
+                max_size,
             );
         }
         Err(_) => {

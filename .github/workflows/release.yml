@@ -28,12 +28,12 @@ jobs:
         working-directory: client-python
     steps:
       - name: checkout repo content
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           repository: OpenAEV-Platform/client-python
           ref: ${{ inputs.branch_implant }}
       - name: setup python
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v6
         with:
           python-version: 3.8 #install the python needed
       - name: Install dependencies
