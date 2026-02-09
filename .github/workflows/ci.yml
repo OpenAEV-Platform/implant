@@ -10,7 +10,7 @@ on:
 
 jobs:
   build:
-    name: ${{ github.event_name == 'push' && 'Build & Deploy' || 'Build' }}
+    name: ${{ github.event_name == 'push' && 'Build & Deploy' || 'Build' }} (${{ matrix.os }}-${{ matrix.arch }})
     runs-on: ${{ matrix.runner }}
     env:
       IS_MUSL_UBUNTU: ${{ (matrix.os == 'ubuntu' && contains(matrix.target, 'musl')) }}
