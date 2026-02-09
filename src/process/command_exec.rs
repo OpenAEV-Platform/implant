@@ -57,7 +57,7 @@ pub fn invoke_command(
         Err(e) if e.kind() == ErrorKind::PermissionDenied => {
             #[cfg(unix)]
             let exit_status = ExitStatus::from_raw(256);
-            
+
             #[cfg(windows)]
             let exit_status = ExitStatus::from_raw(1);
 
