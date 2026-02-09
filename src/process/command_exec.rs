@@ -2,14 +2,19 @@ use std::io::ErrorKind;
 use std::process::{Command, ExitStatus, Output, Stdio};
 
 use base64::{engine::general_purpose::STANDARD, Engine as _};
+use log::{error, info, warn};
 use serde::Deserialize;
 
 use crate::common::error_model::Error;
 use crate::handle::handle_command::compute_command;
 use crate::process::exec_utils::is_executor_present;
 
-#[cfg(unix)]
-use std::os::unix::process::ExitStatusExt;
+use std::os::windows::io::AsRawHandle;
+use std::time::{Duration, Instant};
+use windows::Win32::Foundation::HANDLE;
+use windows::Win32::System::Pipes::PeekNamedPipe;
+use windows::Win32::Storage::FileSystem::ReadFile;
+
 #[cfg(windows)]
 use std::os::windows::process::CommandExt;
 #[cfg(windows)]
@@ -37,7 +42,9 @@ pub fn invoke_command(
         // for other executors, we still use "args" as they are working properly.
         _ => command.args(args).arg(cmd_expression),
     }
+    .stdin(Stdio::null())
     .stdout(Stdio::piped())
+    .stderr(Stdio::piped())
     .output();
 
     match result {
@@ -57,6 +64,169 @@ pub fn invoke_command(
         }
         Err(e) => Err(e),
     }
+}
+
+#[cfg(windows)]
+pub fn invoke_command_nonblocking(
+    cmd_expression: &str,
+    args: &[&str],
+) -> std::io::Result<Output> {
+    let mut child = Command::new("powershell")
+        .args(args)
+        .arg(cmd_expression)
+        .stdin(Stdio::null())
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped())
+        .spawn()?;
+    
+    let pid = child.id();
+    info!("Spawned PID: {}", pid);
+    
+    // Get the handles
+    let stdout_handle = HANDLE(child.stdout.as_ref().unwrap().as_raw_handle() as _);
+    let stderr_handle = HANDLE(child.stderr.as_ref().unwrap().as_raw_handle() as _);
+    
+    let mut stdout_data = Vec::new();
+    let mut stderr_data = Vec::new();
+    
+    let start = Instant::now();
+    let max_total_time = Duration::from_secs(300);       // Timeout total for the command
+    let inactivity_timeout = Duration::from_secs(120);    // Timeout if nothing is pushed onto the stdout or stderr anymore
+    let mut last_data_time = Instant::now();
+    
+    info!("Entering read loop");
+    
+    loop {
+        let mut got_data = false;
+        
+        // Read stdout without blocking it
+        let stdout_bytes = read_pipe_nonblocking(stdout_handle);
+        if !stdout_bytes.is_empty() {
+            info!("Got {} bytes from stdout", stdout_bytes.len());
+            stdout_data.extend(stdout_bytes);
+            last_data_time = Instant::now();
+            got_data = true;
+        }
+        
+        // Read stderr without blocking it
+        let stderr_bytes = read_pipe_nonblocking(stderr_handle);
+        if !stderr_bytes.is_empty() {
+            info!("Got {} bytes from stderr", stderr_bytes.len());
+            stderr_data.extend(stderr_bytes);
+            last_data_time = Instant::now();
+            got_data = true;
+        }
+        
+        // Check if the process ended
+        match child.try_wait() {
+            Ok(Some(status)) => {
+                info!("Process exited with exit code: {:?}", status.code());
+                
+                // Read one last time
+                std::thread::sleep(Duration::from_millis(100));
+                stdout_data.extend(read_pipe_nonblocking(stdout_handle));
+                stderr_data.extend(read_pipe_nonblocking(stderr_handle));
+                
+                // Send back the results
+                return Ok(Output {
+                    status,
+                    stdout: stdout_data,
+                    stderr: stderr_data,
+                });
+            }
+            Ok(None) => {
+                // Process still ongoing
+            }
+            Err(e) => {
+                error!("try_wait error: {}", e);
+                break;
+            }
+        }
+        
+        // Timeout total
+        if start.elapsed() > max_total_time {
+            warn!("Total timeout reached, killing process");
+            let _ = child.kill();
+            break;
+        }
+        
+        // Timeout without any data in the handles
+        if last_data_time.elapsed() > inactivity_timeout {
+            warn!("Inactivity timeout ({:?}), killing process", inactivity_timeout);
+            let _ = child.kill();
+            break;
+        }
+        
+        // We wait a bit before retrying
+        if !got_data {
+            std::thread::sleep(Duration::from_millis(1000));
+        }
+    }
+    
+    info!("Loop ended, stdout={} bytes, stderr={} bytes", 
+          stdout_data.len(), stderr_data.len());
+    
+    // Wait for the end of the process
+    let status = child.wait().unwrap_or_else(|_| ExitStatus::from_raw(1));
+    
+    Ok(Output {
+        status,
+        stdout: stdout_data,
+        stderr: stderr_data,
+    })
+}
+
+#[cfg(windows)]
+fn read_pipe_nonblocking(handle: windows::Win32::Foundation::HANDLE) -> Vec<u8> {
+    
+    let mut buffer = Vec::new();
+    let mut chunk = [0u8; 4096];
+    
+    loop {
+        let mut available: u32 = 0;
+        
+        // Check how many bytes are available
+        let peek_result = unsafe {
+            PeekNamedPipe(
+                handle,
+                None,
+                0,
+                None,
+                Some(&mut available as *mut u32),
+                None,
+            )
+        };
+        
+        if peek_result.is_err() || available == 0 {
+            break;
+        }
+        
+        // Read what's available
+        let to_read = (available as usize).min(chunk.len()) as u32;
+        let mut bytes_read: u32 = 0;
+        
+        let read_result = unsafe {
+            ReadFile(
+                handle,
+                Some(&mut chunk[..to_read as usize]),
+                Some(&mut bytes_read),
+                None,
+            )
+        };
+        
+        if read_result.is_err() || bytes_read == 0 {
+            break;
+        }
+        
+        buffer.extend_from_slice(&chunk[..bytes_read as usize]);
+        
+        // If we read everything, we stop
+        if bytes_read < to_read {
+            break;
+        }
+    }
+    
+    buffer
 }
 
 pub fn decode_command(encoded_command: &str) -> String {
@@ -167,14 +337,26 @@ pub fn command_execution(
         )));
     }
 
-    if final_executor == "cmd" {
-        formatted_cmd = format_windows_command(formatted_cmd);
-        args = vec!["/V", "/C"];
-    } else if final_executor == "powershell" {
+    let invoke_output = if final_executor == "powershell" {
         formatted_cmd = format_powershell_command(formatted_cmd);
-        args = get_psh_arg();
-    }
-
-    let invoke_output = invoke_command(final_executor, &formatted_cmd, args.as_slice());
+        
+        #[cfg(windows)]
+        {
+            args = get_psh_arg();
+            info!(">>> Using direct spawn with args: {:?}", args);
+            invoke_command_nonblocking( &formatted_cmd, &args)            
+        }
+        #[cfg(not(windows))]
+        {
+            args = get_psh_arg();
+            invoke_command(final_executor, &formatted_cmd, &args)
+        }
+    } else if final_executor == "cmd" {
+        args = vec!["/V", "/C"];
+        let formatted = format_windows_command(formatted_cmd);
+        invoke_command(final_executor, &formatted, &args)
+    } else {
+        invoke_command(final_executor, &formatted_cmd, &args)
+    };
     manage_result(invoke_output?, pre_check)
 }

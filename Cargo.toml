@@ -17,5 +17,14 @@ clap = { version = "4.5.7", features = ["derive"] }
 mailparse = "0.16.0"
 percent-encoding ="2.3.2"
 
+[target.'cfg(windows)'.dependencies]
+windows = { version = "0.62.2", features = [
+    "Win32_System_Pipes",
+    "Win32_Storage_FileSystem",
+    "Win32_Foundation",
+    "Win32_System_IO",
+] }
+
+
 [dev-dependencies]
 mockito = "1.7.0"
