@@ -9,16 +9,21 @@ use crate::common::error_model::Error;
 use crate::handle::handle_command::compute_command;
 use crate::process::exec_utils::is_executor_present;
 
+#[cfg(windows)]
 use std::os::windows::io::AsRawHandle;
+#[cfg(windows)]
+use std::os::windows::process::{CommandExt, ExitStatusExt};
+#[cfg(windows)]
 use std::time::{Duration, Instant};
+#[cfg(windows)]
 use windows::Win32::Foundation::HANDLE;
+#[cfg(windows)]
 use windows::Win32::Storage::FileSystem::ReadFile;
+#[cfg(windows)]
 use windows::Win32::System::Pipes::PeekNamedPipe;
 
-#[cfg(windows)]
-use std::os::windows::process::CommandExt;
-#[cfg(windows)]
-use std::os::windows::process::ExitStatusExt;
+#[cfg(unix)]
+use std::os::unix::process::ExitStatusExt;
 
 #[derive(Debug, Deserialize)]
 pub struct ExecutionResult {
@@ -50,11 +55,11 @@ pub fn invoke_command(
     match result {
         Ok(output) => Ok(output),
         Err(e) if e.kind() == ErrorKind::PermissionDenied => {
-            let exit_status = if cfg!(unix) {
-                ExitStatus::from_raw(256)
-            } else {
-                ExitStatus::from_raw(1)
-            };
+            #[cfg(unix)]
+            let exit_status = ExitStatus::from_raw(256);
+            
+            #[cfg(windows)]
+            let exit_status = ExitStatus::from_raw(1);
 
             Ok(Output {
                 status: exit_status,
