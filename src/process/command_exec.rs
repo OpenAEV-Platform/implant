@@ -2,12 +2,14 @@ use std::io::ErrorKind;
 use std::process::{Command, ExitStatus, Output, Stdio};
 
 use base64::{engine::general_purpose::STANDARD, Engine as _};
-use log::{error, info, warn};
 use serde::Deserialize;
 
 use crate::common::error_model::Error;
 use crate::handle::handle_command::compute_command;
 use crate::process::exec_utils::is_executor_present;
+
+#[cfg(windows)]
+use log::{error, info, warn};
 
 #[cfg(windows)]
 use std::os::windows::io::AsRawHandle;
