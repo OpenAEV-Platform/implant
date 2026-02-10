@@ -90,33 +90,34 @@ jobs:
       - name: Run cargo audit
         run: cargo audit
 
-      - name: Build
+      - name: Build (release)
+        if: github.event_name == 'push'
         run: |
           export RUSTFLAGS="-C strip=symbols"
-          if [[ "$GITHUB_EVENT_NAME" == "push" ]]; then
-            if [ "$IS_MUSL_UBUNTU" = true ]; then
-              cargo build --target=${{ matrix.target }} --release --locked
-            else
-              cargo build --release --locked
-            fi
+          if [ "$IS_MUSL_UBUNTU" = "true" ]; then
+            cargo build --target=${{ matrix.target }} --release --locked
           else
-            if [ "$IS_MUSL_UBUNTU" = true ]; then
-              cargo build --target=${{ matrix.target }} --release --locked
-            else
-              cargo build --release --locked
-            fi
+            cargo build --release --locked
           fi
-          ls ./target
         shell: bash
 
-      - name: Test
+      - name: Build (debug)
+        if: github.event_name != 'push'
         run: |
-          if [[ "$GITHUB_EVENT_NAME" == "push" ]]; then
-            cargo test --release --locked
+          if [ "$IS_MUSL_UBUNTU" = "true" ]; then
+            cargo build --target=${{ matrix.target }} --locked
           else
-            cargo test --release --locked
+            cargo build --locked
           fi
         shell: bash
+
+      - name: Test (release)
+        if: github.event_name == 'push'
+        run: cargo test --release --locked
+
+      - name: Test (debug)
+        if: github.event_name != 'push'
+        run: cargo test --locked
 
       - name: Install cargo cache
         run: |
@@ -130,18 +131,8 @@ jobs:
       - name: Run cargo cache
         run: cargo cache -a -l || true
 
-      # - name: strip
-      #   if: env.IS_MUSL_UBUNTU == 'true' || matrix.os == 'macos'
-      #   run: |
-      #     if [ "$IS_MUSL_UBUNTU" = true ]; then
-      #       strip ./target/${{ matrix.target }}/release/openaev-implant
-      #     else
-      #       strip ./target/release/openaev-implant
-      #     fi
-      #   shell: bash
-
       - name: Push to JFrog
-        # if: github.event_name == 'push'
+        if: github.event_name == 'push'
         run: |
           if [ "${GITHUB_REF_TYPE}" = "tag" ]; then
             version="${GITHUB_REF_NAME}"
@@ -150,8 +141,6 @@ jobs:
           else
             version="prerelease"
           fi
-
-          version="latest"
 
           exe_ext=$([ "${{ matrix.os }}" = "windows" ] && echo ".exe" || echo "")
           if [ "$IS_MUSL_UBUNTU" = true ]; then
