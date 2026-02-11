@@ -1,4 +1,4 @@
-name: "CI"
+name: "[Implant] CI"
 
 on:
   push:
