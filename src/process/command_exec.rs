@@ -127,7 +127,6 @@ pub fn invoke_command_nonblocking(cmd_expression: &str, args: &[&str]) -> std::i
                 info!("Process exited with exit code: {:?}", status.code());
 
                 // Read one last time
-                std::thread::sleep(Duration::from_millis(100));
                 stdout_data.extend(read_pipe_nonblocking(stdout_handle));
                 stderr_data.extend(read_pipe_nonblocking(stderr_handle));
 
@@ -166,7 +165,7 @@ pub fn invoke_command_nonblocking(cmd_expression: &str, args: &[&str]) -> std::i
 
         // We wait a bit before retrying
         if !got_data {
-            std::thread::sleep(Duration::from_millis(1000));
+            std::thread::sleep(Duration::from_millis(100));
         }
     }
 
