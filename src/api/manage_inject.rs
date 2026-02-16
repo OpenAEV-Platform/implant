@@ -1,6 +1,7 @@
 use super::Client;
 use crate::common::error_model::Error;
 use crate::process::exec_utils::decode_filename;
+use crate::process::file_exec::get_output_path;
 use log::{error, info};
 use mailparse::{parse_content_disposition, parse_header};
 use reqwest::blocking::Response;
@@ -9,10 +10,9 @@ use serde::{Deserialize, Serialize};
 use serde_json::json;
 use std::fs::File;
 use std::io::{BufWriter, Write};
-use std::path::PathBuf;
 use std::thread::sleep;
 use std::time::Duration;
-use std::{env, fs, io};
+use std::{fs, io};
 
 pub fn write_response<W>(writer: W, response: reqwest::blocking::Response) -> std::io::Result<u64>
 where
@@ -218,20 +218,4 @@ fn extract_filename(response: &Response) -> Result<String, Error> {
         .get("filename")
         .map(|s| s.to_string())
         .ok_or_else(|| Error::Internal("Filename not found".to_string()))
-}
-
-fn get_output_path(filename: &str) -> Result<PathBuf, Error> {
-    let current_exe_path = env::current_exe()
-        .map_err(|e| Error::Internal(format!("Cannot get current executable path: {e}")))?;
-    let parent_path = current_exe_path.parent().ok_or_else(|| {
-        Error::Internal("Cannot determine executable parent directory".to_string())
-    })?;
-
-    // Resolve the payloads path and create it on the fly
-    let folder_name = parent_path.file_name().unwrap().to_str().unwrap();
-    let parent_parent_path = parent_path.parent().unwrap().parent().ok_or_else(|| {
-        Error::Internal("Cannot determine parent directory of parent".to_string())
-    })?;
-    let payloads_path = parent_parent_path.join("payloads").join(folder_name);
-    Ok(payloads_path.join(filename))
 }
