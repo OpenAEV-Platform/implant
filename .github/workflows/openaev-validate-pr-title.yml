@@ -3,6 +3,8 @@ on:
   pull_request:
     branches: [main, release/current]
     types: [opened, edited, reopened, ready_for_review, synchronize]
+permissions:
+  contents: read
 jobs:
   validate-pr-title:
     runs-on: ubuntu-latest
