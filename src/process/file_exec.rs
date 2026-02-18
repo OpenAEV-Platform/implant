@@ -1,6 +1,6 @@
-use std::env;
 use std::path::PathBuf;
 use std::process::{Command, Output, Stdio};
+use std::{env, fs};
 
 use crate::common::error_model::Error;
 use crate::process::command_exec::ExecutionResult;
@@ -100,4 +100,28 @@ pub fn file_execution(filename: &str) -> Result<ExecutionResult, Error> {
         .spawn()?
         .wait_with_output();
     manage_result(invoke_output?)
+}
+
+pub fn delete_file(filename: &str) -> Result<(), Error> {
+    let file_path = get_output_path(filename)?;
+    fs::remove_file(&file_path).map_err(|e| {
+        Error::Internal(format!("Cannot delete file '{}': {e}", file_path.display()))
+    })?;
+    Ok(())
+}
+
+pub fn get_output_path(filename: &str) -> Result<PathBuf, Error> {
+    let current_exe_path = env::current_exe()
+        .map_err(|e| Error::Internal(format!("Cannot get current executable path: {e}")))?;
+    let parent_path = current_exe_path.parent().ok_or_else(|| {
+        Error::Internal("Cannot determine executable parent directory".to_string())
+    })?;
+
+    // Resolve the payloads path and create it on the fly
+    let folder_name = parent_path.file_name().unwrap().to_str().unwrap();
+    let parent_parent_path = parent_path.parent().unwrap().parent().ok_or_else(|| {
+        Error::Internal("Cannot determine parent directory of parent".to_string())
+    })?;
+    let payloads_path = parent_parent_path.join("payloads").join(folder_name);
+    Ok(payloads_path.join(filename))
 }

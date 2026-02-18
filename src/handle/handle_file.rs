@@ -7,7 +7,7 @@ use crate::api::Client;
 use crate::common::error_model::Error;
 use crate::handle::handle_execution::handle_execution_result;
 use crate::handle::ExecutionParam;
-use crate::process::file_exec::file_execution;
+use crate::process::file_exec::{delete_file, file_execution};
 
 pub fn handle_execution_file(
     semantic: &str,
@@ -71,6 +71,7 @@ pub fn handle_file(
                         None,
                         elapsed,
                     );
+                    delete_file(&filename)?;
                     Ok(filename)
                 }
                 Err(err) => {
