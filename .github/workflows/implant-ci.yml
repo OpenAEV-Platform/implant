@@ -1,0 +1,155 @@
+name: "[Implant] CI"
+
+on:
+  push:
+    branches: [main, release/current]
+    tags:
+      - "[0-9]+.[0-9]+.[0-9]+"
+  pull_request:
+    branches: [main, release/current]
+
+jobs:
+  build:
+    name: ${{ github.event_name == 'push' && 'Build & Deploy' || 'Build' }} (${{ matrix.os }}-${{ matrix.arch }})
+    runs-on: ${{ matrix.runner }}
+    env:
+      IS_MUSL_UBUNTU: ${{ (matrix.os == 'ubuntu' && contains(matrix.target, 'musl')) }}
+    strategy:
+      matrix:
+        include:
+          - os: ubuntu
+            arch: x86_64
+            runner: ubuntu-latest
+            target: x86_64-unknown-linux-musl
+            jfrog_path: linux/x86_64
+          - os: ubuntu
+            arch: arm64
+            runner: ubuntu-24.04-arm
+            target: aarch64-unknown-linux-musl
+            jfrog_path: linux/arm64
+          - os: windows
+            arch: x86_64
+            runner: windows-latest
+            target: x86_64-pc-windows-msvc
+            jfrog_path: windows/x86_64
+          - os: windows
+            arch: arm64
+            runner: windows-11-arm
+            target: aarch64-pc-windows-msvc
+            jfrog_path: windows/arm64
+          - os: macos
+            arch: x86_64
+            runner: macos-15-intel
+            target: x86_64-apple-darwin
+            jfrog_path: macos/x86_64
+          - os: macos
+            arch: arm64
+            runner: macos-latest
+            target: aarch64-apple-darwin
+            jfrog_path: macos/arm64
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Install musl-tools
+        if: env.IS_MUSL_UBUNTU == 'true'
+        run: sudo apt-get update && sudo apt-get install -y musl-tools
+
+      - name: Set up Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.target }}
+          components: clippy,rustfmt
+
+      - name: Cache
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/bin/
+            ~/.cargo/registry/index/
+            ~/.cargo/registry/cache/
+            ~/.cargo/git/db/
+            target/
+          key: cargo-${{ runner.os }}-${{ matrix.arch }}-${{ hashFiles('Cargo.lock') }}
+
+      - name: Run cargo fmt
+        run: cargo fmt -- --check
+
+      - name: Run cargo clippy
+        run: cargo clippy -- -D warnings
+
+      - name: Install cargo audit
+        run: |
+          if [ -x "$HOME/.cargo/bin/cargo-audit" ] || [ -x "$USERPROFILE\.cargo\bin\cargo-audit.exe" ]; then
+            echo "cargo-audit already installed."
+          else
+            cargo install cargo-audit --locked
+          fi
+        shell: bash
+
+      - name: Run cargo audit
+        run: cargo audit
+
+      - name: Build (release)
+        if: github.event_name == 'push'
+        run: |
+          export RUSTFLAGS="-C strip=symbols"
+          if [ "$IS_MUSL_UBUNTU" = "true" ]; then
+            cargo build --target=${{ matrix.target }} --release --locked
+          else
+            cargo build --release --locked
+          fi
+        shell: bash
+
+      - name: Build (debug)
+        if: github.event_name != 'push'
+        run: |
+          if [ "$IS_MUSL_UBUNTU" = "true" ]; then
+            cargo build --target=${{ matrix.target }} --locked
+          else
+            cargo build --locked
+          fi
+        shell: bash
+
+      - name: Test (release)
+        if: github.event_name == 'push'
+        run: cargo test --release --locked
+
+      - name: Test (debug)
+        if: github.event_name != 'push'
+        run: cargo test --locked
+
+      - name: Install cargo cache
+        run: |
+          if [ -x "$HOME/.cargo/bin/cargo-cache" ] || [ -x "$USERPROFILE\.cargo\bin\cargo-cache.exe" ]; then
+            echo "cargo-cache already installed."
+          else
+            cargo install cargo-cache --locked
+          fi
+        shell: bash
+
+      - name: Run cargo cache
+        run: cargo cache -a -l || true
+
+      - name: Push to JFrog
+        if: github.event_name == 'push'
+        run: |
+          if [ "${GITHUB_REF_TYPE}" = "tag" ]; then
+            version="${GITHUB_REF_NAME}"
+          elif [ "${GITHUB_REF_NAME}" = "main" ]; then
+            version="latest"
+          else
+            version="prerelease"
+          fi
+
+          exe_ext=$([ "${{ matrix.os }}" = "windows" ] && echo ".exe" || echo "")
+          if [ "$IS_MUSL_UBUNTU" = true ]; then
+            artifact_path=./target/${{ matrix.target }}/release/openaev-implant${exe_ext}
+          else
+            artifact_path=./target/release/openaev-implant${exe_ext}
+          fi
+          curl --fail-with-body \
+            -u samuel.hassine@filigran.io:${{ secrets.JFROG_TOKEN }} \
+            -T "$artifact_path" \
+            "https://filigran.jfrog.io/artifactory/openaev-implant/${{ matrix.jfrog_path}}/openaev-implant-$version${exe_ext}"
+        shell: bash
