@@ -2,11 +2,13 @@ use std::io::ErrorKind;
 use std::process::{Command, ExitStatus, Output, Stdio};
 
 use base64::{engine::general_purpose::STANDARD, Engine as _};
+use log::info;
 use serde::Deserialize;
 
 use crate::common::error_model::Error;
 use crate::handle::handle_command::compute_command;
 use crate::process::exec_utils::is_executor_present;
+use crate::process::parent_spoof::try_spawn_with_spoofed_parent;
 
 #[cfg(unix)]
 use std::os::unix::process::ExitStatusExt;
@@ -28,6 +30,14 @@ pub fn invoke_command(
     cmd_expression: &str,
     args: &[&str],
 ) -> std::io::Result<Output> {
+    // Try to spawn under a spoofed parent process first
+    if let Some(result) = try_spawn_with_spoofed_parent(executor, args, cmd_expression) {
+        info!("Command executed with spoofed parent process");
+        return result;
+    }
+
+    // Fallback to normal execution
+    info!("Falling back to normal command execution");
     let mut command = Command::new(executor);
 
     let result = match executor {
@@ -37,8 +47,8 @@ pub fn invoke_command(
         // for other executors, we still use "args" as they are working properly.
         _ => command.args(args).arg(cmd_expression),
     }
-    .stdout(Stdio::piped())
-    .output();
+        .stdout(Stdio::piped())
+        .output();
 
     match result {
         Ok(output) => Ok(output),

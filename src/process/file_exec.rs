@@ -52,6 +52,9 @@ pub fn manage_result(invoke_output: Output) -> Result<ExecutionResult, Error> {
 
 #[cfg(target_os = "windows")]
 pub fn file_execution(filename: &str) -> Result<ExecutionResult, Error> {
+    use crate::process::parent_spoof::try_spawn_with_spoofed_parent;
+    use log::info;
+
     let executor = "powershell.exe";
     if !is_executor_present(executor) {
         return Err(Error::Internal(format!(
@@ -63,7 +66,7 @@ pub fn file_execution(filename: &str) -> Result<ExecutionResult, Error> {
         "$ErrorActionPreference = 'Stop'; & '{}'; exit $LASTEXITCODE",
         script_file_name.to_str().unwrap()
     );
-    let command_args = &[
+    let command_args: &[&str] = &[
         "-ExecutionPolicy",
         "Bypass",
         "-WindowStyle",
@@ -72,6 +75,15 @@ pub fn file_execution(filename: &str) -> Result<ExecutionResult, Error> {
         "-NoProfile",
         "-Command",
     ];
+
+    // Try spoofed parent first
+    if let Some(result) = try_spawn_with_spoofed_parent(executor, command_args, &win_path) {
+        info!("File executed with spoofed parent process");
+        return manage_result(result?);
+    }
+
+    // Fallback to normal execution
+    info!("Falling back to normal file execution");
     let invoke_output = Command::new(executor)
         .args(command_args)
         .arg(win_path)

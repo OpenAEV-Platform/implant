@@ -277,7 +277,7 @@ fn main() -> Result<(), Error> {
     // region Process execution
 
     let args = Args::parse();
-    info!("Starting OpenAEV implant {} {}", VERSION, mode());
+    info!("Starting OpenAEV SSI {} {}", VERSION, mode());
     let api = Client::new(
         args.uri,
         args.token,
