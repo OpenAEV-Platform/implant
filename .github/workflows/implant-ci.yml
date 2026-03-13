@@ -49,7 +49,7 @@ jobs:
             jfrog_path: macos/arm64
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Install musl-tools
         if: env.IS_MUSL_UBUNTU == 'true'
@@ -62,7 +62,7 @@ jobs:
           components: clippy,rustfmt
 
       - name: Cache
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: |
             ~/.cargo/bin/
