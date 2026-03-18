@@ -93,11 +93,14 @@ jobs:
         shell: pwsh
         run: |
           if (-Not (Test-Path "C:\llvm-mingw\bin\aarch64-w64-mingw32-clang.exe")) {
-            $version = "20250304"
+            $version = "20260311"
             $url = "https://github.com/mstorsjo/llvm-mingw/releases/download/$version/llvm-mingw-$version-ucrt-aarch64.zip"
             Invoke-WebRequest -Uri $url -OutFile llvm-mingw.zip
             Expand-Archive -Path llvm-mingw.zip -DestinationPath C:\llvm-mingw-tmp
-            Move-Item -Path "C:\llvm-mingw-tmp\llvm-mingw-*\*" -Destination "C:\llvm-mingw" -Force
+            New-Item -ItemType Directory -Force -Path "C:\llvm-mingw" | Out-Null
+            Get-ChildItem "C:\llvm-mingw-tmp\llvm-mingw-*" | ForEach-Object {
+              Get-ChildItem $_.FullName | Move-Item -Destination "C:\llvm-mingw" -Force
+            }
             Remove-Item -Recurse -Force C:\llvm-mingw-tmp, llvm-mingw.zip
           } else {
             Write-Host "LLVM MinGW already present (restored from cache)."
