@@ -2,7 +2,7 @@ name: "[Implant] CI"
 
 on:
   push:
-    branches: [issue/110, release/current]
+    branches: [main, release/current]
     tags:
       - "[0-9]+.[0-9]+.[0-9]+"
   pull_request:
@@ -134,7 +134,7 @@ jobs:
         run: |
           if [ "${GITHUB_REF_TYPE}" = "tag" ]; then
             version="${GITHUB_REF_NAME}"
-          elif [ "${GITHUB_REF_NAME}" = "issue/110" ]; then
+          elif [ "${GITHUB_REF_NAME}" = "main" ]; then
             version="latest"
           else
             version="prerelease"
