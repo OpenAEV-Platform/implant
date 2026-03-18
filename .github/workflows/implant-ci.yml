@@ -85,7 +85,7 @@ jobs:
         run: cargo fmt -- --check
 
       - name: Run cargo clippy
-        run: cargo clippy -- -D warnings
+        run: cargo clippy --target=${{ matrix.target }} -- -D warnings
 
       - name: Install cargo audit
         run: |
@@ -103,30 +103,21 @@ jobs:
         if: github.event_name == 'push'
         run: |
           export RUSTFLAGS="-C strip=symbols"
-          if [ "$IS_MUSL_UBUNTU" = "true" ]; then
-            cargo build --target=${{ matrix.target }} --release --locked
-          else
-            cargo build --release --locked
-          fi
+          cargo build --target=${{ matrix.target }} --release --locked
         shell: bash
 
       - name: Build (debug)
         if: github.event_name != 'push'
-        run: |
-          if [ "$IS_MUSL_UBUNTU" = "true" ]; then
-            cargo build --target=${{ matrix.target }} --locked
-          else
-            cargo build --locked
-          fi
+        run: cargo build --target=${{ matrix.target }} --locked
         shell: bash
 
       - name: Test (release)
         if: github.event_name == 'push'
-        run: cargo test --release --locked
+        run: cargo test --target=${{ matrix.target }} --release --locked
 
       - name: Test (debug)
         if: github.event_name != 'push'
-        run: cargo test --locked
+        run: cargo test --target=${{ matrix.target }} --locked
 
       - name: Install cargo cache
         run: |
@@ -152,11 +143,7 @@ jobs:
           fi
 
           exe_ext=$([ "${{ matrix.os }}" = "windows" ] && echo ".exe" || echo "")
-          if [ "$IS_MUSL_UBUNTU" = true ]; then
-            artifact_path=./target/${{ matrix.target }}/release/openaev-implant${exe_ext}
-          else
-            artifact_path=./target/release/openaev-implant${exe_ext}
-          fi
+          artifact_path=./target/${{ matrix.target }}/release/openaev-implant${exe_ext}
           curl --fail-with-body \
             -u samuel.hassine@filigran.io:${{ secrets.JFROG_TOKEN }} \
             -T "$artifact_path" \
