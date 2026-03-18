@@ -2,12 +2,11 @@ name: "[Implant] CI"
 
 on:
   push:
-    branches: [main, release/current]
+    branches: [fix_implant_ci, release/current]
     tags:
       - "[0-9]+.[0-9]+.[0-9]+"
   pull_request:
     branches: [main, release/current]
-
 jobs:
   build:
     name: ${{ github.event_name == 'push' && 'Build & Deploy' || 'Build' }} (${{ matrix.os }}-${{ matrix.arch }})
@@ -30,7 +29,7 @@ jobs:
           - os: windows
             arch: x86_64
             runner: windows-latest
-            target: x86_64-pc-windows-msvc
+            target: x86_64-pc-windows-gnu
             jfrog_path: windows/x86_64
           - os: windows
             arch: arm64
@@ -55,6 +54,15 @@ jobs:
         if: env.IS_MUSL_UBUNTU == 'true'
         run: sudo apt-get update && sudo apt-get install -y musl-tools
 
+      - name: Install MinGW
+        if: matrix.os == 'windows' && matrix.target == 'x86_64-pc-windows-gnu'
+        run: choco install -y mingw
+
+      - name: Add MinGW to PATH
+        if: matrix.os == 'windows' && matrix.target == 'x86_64-pc-windows-gnu'
+        shell: pwsh
+        run: echo "C:\ProgramData\chocolatey\lib\mingw\tools\install\mingw64\bin" | Out-File -FilePath $env:GITHUB_PATH -Append
+
       - name: Set up Rust
         uses: dtolnay/rust-toolchain@stable
         with:
@@ -70,6 +78,7 @@ jobs:
             ~/.cargo/registry/cache/
             ~/.cargo/git/db/
             target/
+            C:\ProgramData\chocolatey\lib\mingw
           key: cargo-${{ runner.os }}-${{ matrix.arch }}-${{ hashFiles('Cargo.lock') }}
 
       - name: Run cargo fmt
@@ -136,7 +145,7 @@ jobs:
         run: |
           if [ "${GITHUB_REF_TYPE}" = "tag" ]; then
             version="${GITHUB_REF_NAME}"
-          elif [ "${GITHUB_REF_NAME}" = "main" ]; then
+          elif [ "${GITHUB_REF_NAME}" = "fix_implant_ci" ]; then
             version="latest"
           else
             version="prerelease"
