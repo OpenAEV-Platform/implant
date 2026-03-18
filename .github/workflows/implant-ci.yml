@@ -29,7 +29,7 @@ jobs:
           - os: windows
             arch: x86_64
             runner: windows-latest
-            target: x86_64-pc-windows-gnu
+            target: x86_64-pc-windows-msvc
             jfrog_path: windows/x86_64
           - os: windows
             arch: arm64
@@ -69,24 +69,7 @@ jobs:
             ~/.cargo/registry/cache/
             ~/.cargo/git/db/
             target/
-            C:\ProgramData\chocolatey\lib\mingw
           key: cargo-${{ runner.os }}-${{ matrix.arch }}-${{ hashFiles('Cargo.lock') }}
-
-      - name: Install MinGW
-        if: matrix.os == 'windows' && matrix.target == 'x86_64-pc-windows-gnu'
-        shell: pwsh
-        run: |
-          if (-Not (Test-Path "C:\ProgramData\chocolatey\lib\mingw\tools\install\mingw64\bin\gcc.exe")) {
-            choco install -y mingw
-          } else {
-            Write-Host "MinGW already present (restored from cache)."
-          }
-
-      - name: Add MinGW to PATH
-        if: matrix.os == 'windows' && matrix.target == 'x86_64-pc-windows-gnu'
-        shell: pwsh
-        run: echo "C:\ProgramData\chocolatey\lib\mingw\tools\install\mingw64\bin" | Out-File -FilePath $env:GITHUB_PATH -Append
-
 
       - name: Run cargo fmt
         run: cargo fmt -- --check
