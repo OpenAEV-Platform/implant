@@ -2,7 +2,7 @@ name: "[Implant] CI"
 
 on:
   push:
-    branches: [fix_implant_ci, release/current]
+    branches: [main, release/current]
     tags:
       - "[0-9]+.[0-9]+.[0-9]+"
   pull_request:
@@ -34,7 +34,7 @@ jobs:
           - os: windows
             arch: arm64
             runner: windows-11-arm
-            target: aarch64-pc-windows-msvc
+            target: aarch64-pc-windows-gnullvm
             jfrog_path: windows/arm64
           - os: macos
             arch: x86_64
@@ -54,15 +54,6 @@ jobs:
         if: env.IS_MUSL_UBUNTU == 'true'
         run: sudo apt-get update && sudo apt-get install -y musl-tools
 
-      - name: Install MinGW
-        if: matrix.os == 'windows' && matrix.target == 'x86_64-pc-windows-gnu'
-        run: choco install -y mingw
-
-      - name: Add MinGW to PATH
-        if: matrix.os == 'windows' && matrix.target == 'x86_64-pc-windows-gnu'
-        shell: pwsh
-        run: echo "C:\ProgramData\chocolatey\lib\mingw\tools\install\mingw64\bin" | Out-File -FilePath $env:GITHUB_PATH -Append
-
       - name: Set up Rust
         uses: dtolnay/rust-toolchain@stable
         with:
@@ -79,7 +70,43 @@ jobs:
             ~/.cargo/git/db/
             target/
             C:\ProgramData\chocolatey\lib\mingw
+            C:\llvm-mingw
           key: cargo-${{ runner.os }}-${{ matrix.arch }}-${{ hashFiles('Cargo.lock') }}
+
+      - name: Install MinGW
+        if: matrix.os == 'windows' && matrix.target == 'x86_64-pc-windows-gnu'
+        shell: pwsh
+        run: |
+          if (-Not (Test-Path "C:\ProgramData\chocolatey\lib\mingw\tools\install\mingw64\bin\gcc.exe")) {
+            choco install -y mingw
+          } else {
+            Write-Host "MinGW already present (restored from cache)."
+          }
+
+      - name: Add MinGW to PATH
+        if: matrix.os == 'windows' && matrix.target == 'x86_64-pc-windows-gnu'
+        shell: pwsh
+        run: echo "C:\ProgramData\chocolatey\lib\mingw\tools\install\mingw64\bin" | Out-File -FilePath $env:GITHUB_PATH -Append
+
+      - name: Install LLVM MinGW
+        if: matrix.target == 'aarch64-pc-windows-gnullvm'
+        shell: pwsh
+        run: |
+          if (-Not (Test-Path "C:\llvm-mingw\bin\aarch64-w64-mingw32-clang.exe")) {
+            $version = "20250304"
+            $url = "https://github.com/mstorsjo/llvm-mingw/releases/download/$version/llvm-mingw-$version-ucrt-aarch64.zip"
+            Invoke-WebRequest -Uri $url -OutFile llvm-mingw.zip
+            Expand-Archive -Path llvm-mingw.zip -DestinationPath C:\llvm-mingw-tmp
+            Move-Item -Path "C:\llvm-mingw-tmp\llvm-mingw-*\*" -Destination "C:\llvm-mingw" -Force
+            Remove-Item -Recurse -Force C:\llvm-mingw-tmp, llvm-mingw.zip
+          } else {
+            Write-Host "LLVM MinGW already present (restored from cache)."
+          }
+
+      - name: Add LLVM MinGW to PATH
+        if: matrix.target == 'aarch64-pc-windows-gnullvm'
+        shell: pwsh
+        run: echo "C:\llvm-mingw\bin" | Out-File -FilePath $env:GITHUB_PATH -Append
 
       - name: Run cargo fmt
         run: cargo fmt -- --check
@@ -136,7 +163,7 @@ jobs:
         run: |
           if [ "${GITHUB_REF_TYPE}" = "tag" ]; then
             version="${GITHUB_REF_NAME}"
-          elif [ "${GITHUB_REF_NAME}" = "fix_implant_ci" ]; then
+          elif [ "${GITHUB_REF_NAME}" = "main" ]; then
             version="latest"
           else
             version="prerelease"
