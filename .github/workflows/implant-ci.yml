@@ -7,7 +7,6 @@ on:
       - "[0-9]+.[0-9]+.[0-9]+"
   pull_request:
     branches: [main, release/current]
-
 jobs:
   build:
     name: ${{ github.event_name == 'push' && 'Build & Deploy' || 'Build' }} (${{ matrix.os }}-${{ matrix.arch }})
@@ -76,7 +75,7 @@ jobs:
         run: cargo fmt -- --check
 
       - name: Run cargo clippy
-        run: cargo clippy -- -D warnings
+        run: cargo clippy --target=${{ matrix.target }} -- -D warnings
 
       - name: Install cargo audit
         run: |
@@ -93,31 +92,30 @@ jobs:
       - name: Build (release)
         if: github.event_name == 'push'
         run: |
-          export RUSTFLAGS="-C strip=symbols"
-          if [ "$IS_MUSL_UBUNTU" = "true" ]; then
-            cargo build --target=${{ matrix.target }} --release --locked
-          else
-            cargo build --release --locked
+          RUSTFLAGS="-C strip=symbols"
+          if [[ "${{ matrix.os }}" == "windows" ]]; then
+            RUSTFLAGS="$RUSTFLAGS -C target-feature=+crt-static"
           fi
+          export RUSTFLAGS
+          cargo build --target=${{ matrix.target }} --release --locked
         shell: bash
 
       - name: Build (debug)
         if: github.event_name != 'push'
         run: |
-          if [ "$IS_MUSL_UBUNTU" = "true" ]; then
-            cargo build --target=${{ matrix.target }} --locked
-          else
-            cargo build --locked
+          if [[ "${{ matrix.os }}" == "windows" ]]; then
+            export RUSTFLAGS="-C target-feature=+crt-static"
           fi
+          cargo build --target=${{ matrix.target }} --locked
         shell: bash
 
       - name: Test (release)
         if: github.event_name == 'push'
-        run: cargo test --release --locked
+        run: cargo test --target=${{ matrix.target }} --release --locked
 
       - name: Test (debug)
         if: github.event_name != 'push'
-        run: cargo test --locked
+        run: cargo test --target=${{ matrix.target }} --locked
 
       - name: Install cargo cache
         run: |
@@ -130,6 +128,7 @@ jobs:
 
       - name: Run cargo cache
         run: cargo cache -a -l || true
+        shell: bash
 
       - name: Push to JFrog
         if: github.event_name == 'push'
@@ -143,13 +142,9 @@ jobs:
           fi
 
           exe_ext=$([ "${{ matrix.os }}" = "windows" ] && echo ".exe" || echo "")
-          if [ "$IS_MUSL_UBUNTU" = true ]; then
-            artifact_path=./target/${{ matrix.target }}/release/openaev-implant${exe_ext}
-          else
-            artifact_path=./target/release/openaev-implant${exe_ext}
-          fi
+          artifact_path=./target/${{ matrix.target }}/release/openaev-implant${exe_ext}
           curl --fail-with-body \
             -u samuel.hassine@filigran.io:${{ secrets.JFROG_TOKEN }} \
             -T "$artifact_path" \
-            "https://filigran.jfrog.io/artifactory/openaev-implant/${{ matrix.jfrog_path}}/openaev-implant-$version${exe_ext}"
+            "https://filigran.jfrog.io/artifactory/openaev-implant/${{ matrix.jfrog_path }}/openaev-implant-$version${exe_ext}"
         shell: bash
