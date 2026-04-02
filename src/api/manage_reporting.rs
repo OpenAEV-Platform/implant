@@ -23,7 +23,7 @@ pub fn report_success(
             execution_message,
             execution_status: String::from("SUCCESS"),
             execution_duration: duration,
-            execution_action: String::from(params.semantic.clone()),
+            execution_action: params.semantic.clone(),
         },
     );
 }
@@ -49,7 +49,7 @@ pub fn report_error(
             execution_message,
             execution_status: String::from("ERROR"),
             execution_duration: duration,
-            execution_action: String::from(params.semantic.clone()),
+            execution_action: params.semantic.clone(),
         },
     );
 }
