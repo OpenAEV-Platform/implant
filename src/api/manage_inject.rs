@@ -85,10 +85,11 @@ impl Client {
         &self,
         inject_id: &str,
         agent_id: &str,
+        tenant_id: &str,
     ) -> Result<InjectorContractPayload, Error> {
         match self
             .get(&format!(
-                "/api/injects/{inject_id}/{agent_id}/executable-payload"
+                "/api/tenants/{tenant_id}/injects/{inject_id}/{agent_id}/executable-payload"
             ))
             .send()
         {
@@ -112,28 +113,30 @@ impl Client {
         &self,
         inject_id: String,
         agent_id: String,
+        tenant_id: String,
         input: UpdateInput,
     ) -> Result<UpdateInjectResponse, Error> {
-        self.update_status_retry(inject_id, agent_id, input, 20)
+        self.update_status_retry(inject_id, agent_id, tenant_id, input, 20)
     }
 
     fn update_status_retry(
         &self,
         inject_id: String,
         agent_id: String,
+        tenant_id: String,
         input: UpdateInput,
         retry: u64,
     ) -> Result<UpdateInjectResponse, Error> {
         let post_data = json!(input);
         match self
             .post(&format!(
-                "/api/injects/execution/{agent_id}/callback/{inject_id}"
+                "/api/tenants/{tenant_id}/injects/execution/{agent_id}/callback/{inject_id}"
             ))
             .json(&post_data)
             .send()
         {
             Ok(response) => {
-                self.update_status_response(response, inject_id, agent_id, input, retry)
+                self.update_status_response(response, inject_id, agent_id, tenant_id, input, retry)
             }
             Err(err) => Err(Error::Internal(err.to_string())),
         }
@@ -144,6 +147,7 @@ impl Client {
         response: Response,
         inject_id: String,
         agent_id: String,
+        tenant_id: String,
         input: UpdateInput,
         retry: u64,
     ) -> Result<UpdateInjectResponse, Error> {
@@ -155,7 +159,7 @@ impl Client {
         } else if response.status().is_client_error() && retry > 0 {
             sleep(Duration::from_secs(10));
             info!("retry {retry:?} to update status for inject id: {inject_id:?} and agent id: {agent_id:?}");
-            self.update_status_retry(inject_id, agent_id, input, retry - 1)
+            self.update_status_retry(inject_id, agent_id, tenant_id, input, retry - 1)
         } else {
             let msg = response
                 .text()
@@ -165,9 +169,9 @@ impl Client {
         }
     }
 
-    pub fn download_file(&self, document_id: &String, in_memory: bool) -> Result<String, Error> {
+    pub fn download_file(&self, document_id: &String, tenant_id: String, in_memory: bool) -> Result<String, Error> {
         match self
-            .get(&format!("/api/documents/{document_id}/file"))
+            .get(&format!("/api/tenants/{tenant_id}/documents/{document_id}/file"))
             .send()
         {
             Ok(response) => {

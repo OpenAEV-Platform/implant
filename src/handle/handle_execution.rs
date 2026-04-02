@@ -55,6 +55,7 @@ pub fn handle_execution_result(
                 let _ = api.update_status(
                     params.inject_id.clone(),
                     params.agent_id.clone(),
+                    params.tenant_id.clone(),
                     UpdateInput {
                         execution_message: info_message,
                         execution_status: String::from("ERROR"),
@@ -68,6 +69,7 @@ pub fn handle_execution_result(
                 let _ = api.update_status(
                     params.inject_id.clone(),
                     params.agent_id.clone(),
+                    params.tenant_id.clone(),
                     UpdateInput {
                         execution_message,
                         execution_status: res.status,
@@ -92,6 +94,7 @@ pub fn handle_execution_result(
             let _ = api.update_status(
                 params.inject_id.clone(),
                 params.agent_id.clone(),
+                params.tenant_id.clone(),
                 UpdateInput {
                     execution_message,
                     execution_status: String::from("ERROR"),

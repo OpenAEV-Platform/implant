@@ -7,6 +7,7 @@ pub fn report_success(
     semantic: &str,
     inject_id: String,
     agent_id: String,
+    tenant_id: String,
     stdout: String,
     stderr: Option<String>,
     duration: u128,
@@ -20,6 +21,7 @@ pub fn report_success(
     let _ = api.update_status(
         inject_id.clone(),
         agent_id.clone(),
+        tenant_id.clone(),
         UpdateInput {
             execution_message,
             execution_status: String::from("SUCCESS"),
@@ -34,6 +36,7 @@ pub fn report_error(
     semantic: &str,
     inject_id: String,
     agent_id: String,
+    tenant_id: String,
     stdout: Option<String>,
     stderr: String,
     duration: u128,
@@ -47,6 +50,7 @@ pub fn report_error(
     let _ = api.update_status(
         inject_id.clone(),
         agent_id.clone(),
+        tenant_id.clone(),
         UpdateInput {
             execution_message,
             execution_status: String::from("ERROR"),

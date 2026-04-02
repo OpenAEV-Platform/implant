@@ -17,7 +17,7 @@ mod tests {
         let content_disposition = format!("attachment; filename=\"{}\"", filename);
 
         let _m = server
-            .mock("GET", "/api/documents/123/file")
+            .mock("GET", "/api/tenants/test-tenant/documents/123/file")
             .with_status(200)
             .with_header("content-disposition", &content_disposition)
             .with_body(file_content)
@@ -31,7 +31,7 @@ mod tests {
         );
 
         // -- EXECUTE --
-        let result = client.download_file(&"123".to_string(), true);
+        let result = client.download_file(&"123".to_string(), "test-tenant".to_string(), true);
 
         // -- ASSERT --
         assert!(result.is_ok());
@@ -61,7 +61,7 @@ mod tests {
         let content_disposition = format!("attachment; filename=\"{}\"", filename);
 
         let _m = server
-            .mock("GET", "/api/documents/123/file")
+            .mock("GET", "/api/tenants/test-tenant/documents/123/file")
             .with_status(200)
             .with_header("content-disposition", &content_disposition)
             .with_body(file_content)
@@ -75,7 +75,7 @@ mod tests {
         );
 
         // -- EXECUTE --
-        let result = client.download_file(&"123".to_string(), false);
+        let result = client.download_file(&"123".to_string(), "test-tenant".to_string(), false);
 
         // -- ASSERT --
         assert!(result.is_ok());
