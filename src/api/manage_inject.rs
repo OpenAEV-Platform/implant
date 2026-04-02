@@ -169,9 +169,16 @@ impl Client {
         }
     }
 
-    pub fn download_file(&self, document_id: &String, tenant_id: String, in_memory: bool) -> Result<String, Error> {
+    pub fn download_file(
+        &self,
+        document_id: &String,
+        tenant_id: String,
+        in_memory: bool,
+    ) -> Result<String, Error> {
         match self
-            .get(&format!("/api/tenants/{tenant_id}/documents/{document_id}/file"))
+            .get(&format!(
+                "/api/tenants/{tenant_id}/documents/{document_id}/file"
+            ))
             .send()
         {
             Ok(response) => {

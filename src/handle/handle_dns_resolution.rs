@@ -63,6 +63,11 @@ pub fn handle_dns_resolution(
                 }
             }
         };
-        let _ = api.update_status(inject_id.clone(), agent_id.clone(), tenant_id.clone(), input);
+        let _ = api.update_status(
+            inject_id.clone(),
+            agent_id.clone(),
+            tenant_id.clone(),
+            input,
+        );
     }
 }

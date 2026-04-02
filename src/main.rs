@@ -188,15 +188,13 @@ pub fn handle_payload(
                 contract_payload,
                 max_size,
             ),
-            "DnsResolution" => {
-                handle_dns_resolution(
-                    inject_id.clone(),
-                    agent_id.clone(),
-                    tenant_id.clone(),
-                    api,
-                    contract_payload,
-                )
-            }
+            "DnsResolution" => handle_dns_resolution(
+                inject_id.clone(),
+                agent_id.clone(),
+                tenant_id.clone(),
+                api,
+                contract_payload,
+            ),
             "Executable" => handle_file_execute(
                 inject_id.clone(),
                 agent_id.clone(),
@@ -205,15 +203,13 @@ pub fn handle_payload(
                 contract_payload,
                 max_size,
             ),
-            "FileDrop" => {
-                handle_file_drop(
-                    inject_id.clone(),
-                    agent_id.clone(),
-                    tenant_id.clone(),
-                    api,
-                    contract_payload,
-                )
-            }
+            "FileDrop" => handle_file_drop(
+                inject_id.clone(),
+                agent_id.clone(),
+                tenant_id.clone(),
+                api,
+                contract_payload,
+            ),
             // "NetworkTraffic" => {}, // Not implemented yet
             _ => {
                 let _ = api.update_status(
