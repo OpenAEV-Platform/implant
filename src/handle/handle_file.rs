@@ -49,10 +49,13 @@ pub fn handle_file(
             let stderr = String::from("Payload download fail, document not specified");
             report_error(
                 api,
-                "file_drop",
-                inject_id.clone(),
-                agent_id.clone(),
-                tenant_id.clone(),
+                &ExecutionParam {
+                    semantic: "file_drop".parse().unwrap(),
+                    inject_id: inject_id.clone(),
+                    agent_id: agent_id.clone(),
+                    tenant_id: tenant_id.clone(),
+                    max_size: 0,
+                },
                 None,
                 stderr.clone(),
                 0,
@@ -68,10 +71,13 @@ pub fn handle_file(
                     let stdout = String::from("File downloaded with success");
                     report_success(
                         api,
-                        "file_drop",
-                        inject_id.clone(),
-                        agent_id.clone(),
-                        tenant_id.clone(),
+                        &ExecutionParam {
+                            semantic: "file_drop".parse().unwrap(),
+                            inject_id: inject_id.clone(),
+                            agent_id: agent_id.clone(),
+                            tenant_id: tenant_id.clone(),
+                            max_size: 0,
+                        },
                         stdout,
                         None,
                         elapsed,
@@ -83,10 +89,13 @@ pub fn handle_file(
                     let stderr = format!("{err:?}");
                     report_error(
                         api,
-                        "file_drop",
-                        inject_id.clone(),
-                        agent_id.clone(),
-                        tenant_id.clone(),
+                        &ExecutionParam {
+                            semantic: "file_drop".parse().unwrap(),
+                            inject_id: inject_id.clone(),
+                            agent_id: agent_id.clone(),
+                            tenant_id: tenant_id.clone(),
+                            max_size: 0,
+                        },
                         None,
                         stderr,
                         elapsed,
