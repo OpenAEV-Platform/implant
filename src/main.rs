@@ -46,6 +46,8 @@ struct Args {
     agent_id: String,
     #[arg(short, long)]
     inject_id: String,
+    #[arg(short = 'e', long)]
+    tenant_id: String,
     #[arg(short, long, default_value = "1000000")]
     max_size: Option<usize>,
 }
@@ -82,6 +84,7 @@ pub fn set_error_hook() {
         let _ = api.update_status(
             args.inject_id,
             args.agent_id,
+            args.tenant_id,
             UpdateInput {
                 execution_message: String::from(cause),
                 execution_status: String::from("ERROR"),
@@ -99,6 +102,7 @@ pub fn mode() -> String {
 pub fn handle_payload(
     inject_id: String,
     agent_id: String,
+    tenant_id: String,
     api: &Client,
     contract_payload: &InjectorContractPayload,
     duration: Instant,
@@ -119,7 +123,7 @@ pub fn handle_payload(
                         // Nothing to do but strange.
                     }
                     Some(uri) => {
-                        let _ = api.download_file(uri, false);
+                        let _ = api.download_file(uri, tenant_id.clone(), false);
                     }
                 }
             }
@@ -143,6 +147,7 @@ pub fn handle_payload(
                     semantic: String::from("prerequisite_check"),
                     inject_id: inject_id.clone(),
                     agent_id: agent_id.clone(),
+                    tenant_id: tenant_id.clone(),
                     max_size,
                 },
                 api,
@@ -159,6 +164,7 @@ pub fn handle_payload(
                     semantic: String::from("prerequisite_execution"),
                     inject_id: inject_id.clone(),
                     agent_id: agent_id.clone(),
+                    tenant_id: tenant_id.clone(),
                     max_size,
                 },
                 api,
@@ -177,28 +183,39 @@ pub fn handle_payload(
             "Command" => handle_command(
                 inject_id.clone(),
                 agent_id.clone(),
+                tenant_id.clone(),
                 api,
                 contract_payload,
                 max_size,
             ),
-            "DnsResolution" => {
-                handle_dns_resolution(inject_id.clone(), agent_id.clone(), api, contract_payload)
-            }
+            "DnsResolution" => handle_dns_resolution(
+                inject_id.clone(),
+                agent_id.clone(),
+                tenant_id.clone(),
+                api,
+                contract_payload,
+            ),
             "Executable" => handle_file_execute(
                 inject_id.clone(),
                 agent_id.clone(),
+                tenant_id.clone(),
                 api,
                 contract_payload,
                 max_size,
             ),
-            "FileDrop" => {
-                handle_file_drop(inject_id.clone(), agent_id.clone(), api, contract_payload)
-            }
+            "FileDrop" => handle_file_drop(
+                inject_id.clone(),
+                agent_id.clone(),
+                tenant_id.clone(),
+                api,
+                contract_payload,
+            ),
             // "NetworkTraffic" => {}, // Not implemented yet
             _ => {
                 let _ = api.update_status(
                     inject_id.clone(),
                     agent_id.clone(),
+                    tenant_id.clone(),
                     UpdateInput {
                         execution_message: String::from("Payload execution type not supported."),
                         execution_status: String::from("ERROR"),
@@ -225,6 +242,7 @@ pub fn handle_payload(
                     semantic: String::from("cleanup_execution"),
                     inject_id: inject_id.clone(),
                     agent_id: agent_id.clone(),
+                    tenant_id: tenant_id.clone(),
                     max_size,
                 },
                 api,
@@ -238,6 +256,7 @@ pub fn handle_payload(
     let _ = api.update_status(
         inject_id.clone(),
         agent_id.clone(),
+        tenant_id.clone(),
         UpdateInput {
             execution_message: String::from(execution_message),
             execution_status: String::from(execution_status),
@@ -284,11 +303,16 @@ fn main() -> Result<(), Error> {
         args.unsecured_certificate == "true",
         args.with_proxy == "true",
     );
-    let payload = api.get_executable_payload(args.inject_id.as_str(), args.agent_id.as_str());
+    let payload = api.get_executable_payload(
+        args.inject_id.as_str(),
+        args.agent_id.as_str(),
+        args.tenant_id.as_str(),
+    );
     let contract_payload = payload.unwrap_or_else(|err| panic!("Fail getting payload {err}"));
     handle_payload(
         args.inject_id.clone(),
         args.agent_id.clone(),
+        args.tenant_id.clone(),
         &api,
         &contract_payload,
         duration,

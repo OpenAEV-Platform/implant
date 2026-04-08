@@ -9,6 +9,7 @@ use crate::handle::ExecutionOutput;
 pub fn handle_dns_resolution(
     inject_id: String,
     agent_id: String,
+    tenant_id: String,
     api: &Client,
     contract_payload: &InjectorContractPayload,
 ) {
@@ -62,6 +63,11 @@ pub fn handle_dns_resolution(
                 }
             }
         };
-        let _ = api.update_status(inject_id.clone(), agent_id.clone(), input);
+        let _ = api.update_status(
+            inject_id.clone(),
+            agent_id.clone(),
+            tenant_id.clone(),
+            input,
+        );
     }
 }
