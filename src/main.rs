@@ -10,6 +10,7 @@ use std::time::Instant;
 
 use crate::api::manage_inject::{InjectorContractPayload, UpdateInput};
 use crate::api::Client;
+use crate::common::constants::{STATUS_ERROR, STATUS_INFO};
 use crate::common::error_model::Error;
 use crate::handle::handle_command::{compute_command, handle_command, handle_execution_command};
 use crate::handle::handle_dns_resolution::handle_dns_resolution;
@@ -84,7 +85,7 @@ pub fn set_error_hook() {
             args.agent_id,
             UpdateInput {
                 execution_message: String::from(cause),
-                execution_status: String::from("ERROR"),
+                execution_status: String::from(STATUS_ERROR),
                 execution_duration: 0,
                 execution_action: String::from("complete"),
             },
@@ -105,8 +106,6 @@ pub fn handle_payload(
     max_size: usize,
 ) {
     let mut prerequisites_code = 0;
-    let mut execution_message = "Payload completed";
-    let mut execution_status = "INFO";
     // region download files parameters
     if let Some(slice_arguments) = contract_payload.payload_arguments.as_deref() {
         // println!("Slice reference exists. Length: {}", slice_arguments.len());
@@ -174,25 +173,29 @@ pub fn handle_payload(
     if prerequisites_code == 0 {
         let payload_type = &contract_payload.payload_type;
         match payload_type.as_str() {
-            "Command" => handle_command(
-                inject_id.clone(),
-                agent_id.clone(),
-                api,
-                contract_payload,
-                max_size,
-            ),
-            "DnsResolution" => {
-                handle_dns_resolution(inject_id.clone(), agent_id.clone(), api, contract_payload)
+            "Command" => {
+                handle_command(
+                    inject_id.clone(),
+                    agent_id.clone(),
+                    api,
+                    contract_payload,
+                    max_size,
+                );
             }
-            "Executable" => handle_file_execute(
-                inject_id.clone(),
-                agent_id.clone(),
-                api,
-                contract_payload,
-                max_size,
-            ),
+            "DnsResolution" => {
+                handle_dns_resolution(inject_id.clone(), agent_id.clone(), api, contract_payload);
+            }
+            "Executable" => {
+                handle_file_execute(
+                    inject_id.clone(),
+                    agent_id.clone(),
+                    api,
+                    contract_payload,
+                    max_size,
+                );
+            }
             "FileDrop" => {
-                handle_file_drop(inject_id.clone(), agent_id.clone(), api, contract_payload)
+                handle_file_drop(inject_id.clone(), agent_id.clone(), api, contract_payload);
             }
             // "NetworkTraffic" => {}, // Not implemented yet
             _ => {
@@ -201,16 +204,13 @@ pub fn handle_payload(
                     agent_id.clone(),
                     UpdateInput {
                         execution_message: String::from("Payload execution type not supported."),
-                        execution_status: String::from("ERROR"),
+                        execution_status: String::from(STATUS_ERROR),
                         execution_duration: duration.elapsed().as_millis(),
-                        execution_action: String::from("complete"),
+                        execution_action: String::from("command_execution"),
                     },
                 );
             }
         }
-    } else {
-        execution_message = "Payload execution not executed due to dependencies failure.";
-        execution_status = "ERROR";
     }
     // endregion
     // region cleanup execution
@@ -239,8 +239,8 @@ pub fn handle_payload(
         inject_id.clone(),
         agent_id.clone(),
         UpdateInput {
-            execution_message: String::from(execution_message),
-            execution_status: String::from(execution_status),
+            execution_message: String::from("Payload completed"),
+            execution_status: String::from(STATUS_INFO),
             execution_duration: duration.elapsed().as_millis(),
             execution_action: String::from("complete"),
         },

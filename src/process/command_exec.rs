@@ -1,39 +1,30 @@
-use std::io::ErrorKind;
-use std::process::{Command, ExitStatus, Output, Stdio};
+use std::process::{Command, Stdio};
 
 use base64::{engine::general_purpose::STANDARD, Engine as _};
-use serde::Deserialize;
 
+#[cfg(unix)]
+use crate::common::constants::EXECUTOR_PSH;
+use crate::common::constants::{EXECUTOR_BASH, EXECUTOR_CMD, EXECUTOR_POWERSHELL, EXECUTOR_SH};
 use crate::common::error_model::Error;
+use crate::common::execution_result::{handle_io_error, manage_result, ExecutionResult};
 use crate::handle::handle_command::compute_command;
 use crate::process::exec_utils::is_executor_present;
 
-#[cfg(unix)]
-use std::os::unix::process::ExitStatusExt;
 #[cfg(windows)]
 use std::os::windows::process::CommandExt;
-#[cfg(windows)]
-use std::os::windows::process::ExitStatusExt;
-
-#[derive(Debug, Deserialize)]
-pub struct ExecutionResult {
-    pub stdout: String,
-    pub stderr: String,
-    pub status: String,
-    pub exit_code: i32,
-}
 
 pub fn invoke_command(
     executor: &str,
     cmd_expression: &str,
     args: &[&str],
-) -> std::io::Result<Output> {
+    pre_check: bool,
+) -> Result<ExecutionResult, Error> {
     let mut command = Command::new(executor);
 
     let result = match executor {
         // For CMD we use "raw_args" to fix issue #3161;
         #[cfg(windows)]
-        "cmd" => command.args(args).raw_arg(cmd_expression),
+        EXECUTOR_CMD => command.args(args).raw_arg(cmd_expression),
         // for other executors, we still use "args" as they are working properly.
         _ => command.args(args).arg(cmd_expression),
     }
@@ -41,21 +32,8 @@ pub fn invoke_command(
     .output();
 
     match result {
-        Ok(output) => Ok(output),
-        Err(e) if e.kind() == ErrorKind::PermissionDenied => {
-            let exit_status = if cfg!(unix) {
-                ExitStatus::from_raw(256)
-            } else {
-                ExitStatus::from_raw(1)
-            };
-
-            Ok(Output {
-                status: exit_status,
-                stdout: Vec::new(),
-                stderr: format!("{e}").into_bytes(),
-            })
-        }
-        Err(e) => Err(e),
+        Ok(output) => manage_result(output, pre_check, executor),
+        Err(e) => handle_io_error(e),
     }
 }
 
@@ -77,58 +55,24 @@ pub fn format_windows_command(command: String) -> String {
     format!("setlocal & {command} & exit /b errorlevel")
 }
 
-pub fn manage_result(invoke_output: Output, pre_check: bool) -> Result<ExecutionResult, Error> {
-    let invoke_result = invoke_output.clone();
-    let exit_code = invoke_result.status.code().unwrap_or(-99);
-
-    let stdout = decode_output(&invoke_result.stdout);
-    let stderr = decode_output(&invoke_result.stderr);
-
-    let exit_status = match exit_code {
-        0 if stderr.is_empty() => "SUCCESS",
-        0 if !stderr.is_empty() => "WARNING",
-        1 if pre_check => "SUCCESS",
-        -99 => "ERROR",
-        127 => "COMMAND_NOT_FOUND",
-        126 => "COMMAND_CANNOT_BE_EXECUTED",
-        _ => "MAYBE_PREVENTED",
-    };
-
-    Ok(ExecutionResult {
-        stdout,
-        stderr,
-        exit_code,
-        status: String::from(exit_status),
-    })
-}
-
-pub fn decode_output(raw_bytes: &[u8]) -> String {
-    // Try decoding as UTF-8
-    if let Ok(decoded) = String::from_utf8(raw_bytes.to_vec()) {
-        return decoded; // Return if successful
-    }
-    // Fallback to UTF-8 lossy decoding
-    String::from_utf8_lossy(raw_bytes).to_string()
-}
-
-#[cfg(target_os = "windows")]
+#[cfg(windows)]
 pub fn get_executor(executor: &str) -> &str {
     match executor {
-        "cmd" | "bash" | "sh" => executor,
-        _ => "powershell",
+        EXECUTOR_CMD | EXECUTOR_BASH | EXECUTOR_SH => executor,
+        _ => EXECUTOR_POWERSHELL,
     }
 }
 
-#[cfg(any(target_os = "linux", target_os = "macos"))]
+#[cfg(unix)]
 pub fn get_executor(executor: &str) -> &str {
     match executor {
-        "bash" => executor,
-        "psh" => "powershell",
-        _ => "sh",
+        EXECUTOR_BASH => executor,
+        EXECUTOR_PSH => EXECUTOR_POWERSHELL,
+        _ => EXECUTOR_SH,
     }
 }
 
-#[cfg(target_os = "windows")]
+#[cfg(windows)]
 pub fn get_psh_arg() -> Vec<&'static str> {
     Vec::from([
         "-ExecutionPolicy",
@@ -141,7 +85,7 @@ pub fn get_psh_arg() -> Vec<&'static str> {
     ])
 }
 
-#[cfg(any(target_os = "linux", target_os = "macos"))]
+#[cfg(unix)]
 pub fn get_psh_arg() -> Vec<&'static str> {
     Vec::from([
         "-ExecutionPolicy",
@@ -167,14 +111,13 @@ pub fn command_execution(
         )));
     }
 
-    if final_executor == "cmd" {
+    if final_executor == EXECUTOR_CMD {
         formatted_cmd = format_windows_command(formatted_cmd);
         args = vec!["/V", "/C"];
-    } else if final_executor == "powershell" {
+    } else if final_executor == EXECUTOR_POWERSHELL {
         formatted_cmd = format_powershell_command(formatted_cmd);
         args = get_psh_arg();
     }
 
-    let invoke_output = invoke_command(final_executor, &formatted_cmd, args.as_slice());
-    manage_result(invoke_output?, pre_check)
+    invoke_command(final_executor, &formatted_cmd, args.as_slice(), pre_check)
 }

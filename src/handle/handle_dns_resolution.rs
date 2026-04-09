@@ -4,6 +4,7 @@ use log::info;
 
 use crate::api::manage_inject::{InjectorContractPayload, UpdateInput};
 use crate::api::Client;
+use crate::common::constants::{STATUS_ERROR, STATUS_SUCCESS};
 use crate::handle::ExecutionOutput;
 
 pub fn handle_dns_resolution(
@@ -41,7 +42,7 @@ pub fn handle_dns_resolution(
                 };
                 UpdateInput {
                     execution_message: serde_json::to_string(&message).unwrap(),
-                    execution_status: String::from("SUCCESS"),
+                    execution_status: String::from(STATUS_SUCCESS),
                     execution_duration: 0,
                     execution_action: String::from("dns_resolution"),
                 }
@@ -56,7 +57,7 @@ pub fn handle_dns_resolution(
                 };
                 UpdateInput {
                     execution_message: serde_json::to_string(&message).unwrap(),
-                    execution_status: String::from("ERROR"),
+                    execution_status: String::from(STATUS_ERROR),
                     execution_duration: 0,
                     execution_action: String::from("dns_resolution"),
                 }
