@@ -1,6 +1,5 @@
 use clap::Parser;
 use log::{error, info};
-use rolling_file::{BasicRollingFileAppender, RollingConditionBasic};
 use std::env;
 use std::fs::create_dir_all;
 use std::ops::Deref;
@@ -29,7 +28,6 @@ mod tests;
 pub static THREADS_CONTROL: AtomicBool = AtomicBool::new(true);
 const ENV_PRODUCTION: &str = "production";
 const VERSION: &str = env!("CARGO_PKG_VERSION");
-const PREFIX_LOG_NAME: &str = "openaev-implant.log";
 
 #[derive(Parser, Debug)]
 #[command(version, about, long_about = None)]
@@ -249,11 +247,10 @@ pub fn handle_payload(
 
 fn main() -> Result<(), Error> {
     set_error_hook();
-    // region Init logger
     let duration = Instant::now();
     let current_exe_path = env::current_exe().unwrap();
     let parent_path = current_exe_path.parent().unwrap();
-    let log_file = parent_path.join(PREFIX_LOG_NAME);
+    let _logger_file = common::logger::init_logger(parent_path);
 
     // Resolve the payloads path and create it on the fly
     let folder_name = parent_path.file_name().unwrap().to_str().unwrap();
@@ -266,14 +263,6 @@ fn main() -> Result<(), Error> {
         .join(folder_name);
     create_dir_all(payloads_path).expect("Unable to create payload directory");
 
-    let condition = RollingConditionBasic::new().daily();
-    let file_appender = BasicRollingFileAppender::new(log_file, condition, 3).unwrap();
-    let (file_writer, _guard) = tracing_appender::non_blocking(file_appender);
-    tracing_subscriber::fmt()
-        .json()
-        .with_writer(file_writer)
-        .init();
-    // endregion
     // region Process execution
 
     let args = Args::parse();
