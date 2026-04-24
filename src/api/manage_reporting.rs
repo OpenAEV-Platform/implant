@@ -1,5 +1,6 @@
 use crate::api::manage_inject::UpdateInput;
 use crate::api::Client;
+use crate::common::constants::{STATUS_ERROR, STATUS_SUCCESS};
 use crate::handle::{ExecutionOutput, ExecutionParam};
 
 pub fn report_success(
@@ -21,7 +22,7 @@ pub fn report_success(
         params.tenant_id.clone(),
         UpdateInput {
             execution_message,
-            execution_status: String::from("SUCCESS"),
+            execution_status: String::from(STATUS_SUCCESS),
             execution_duration: duration,
             execution_action: params.semantic.clone(),
         },
@@ -47,7 +48,7 @@ pub fn report_error(
         params.tenant_id.clone(),
         UpdateInput {
             execution_message,
-            execution_status: String::from("ERROR"),
+            execution_status: String::from(STATUS_ERROR),
             execution_duration: duration,
             execution_action: params.semantic.clone(),
         },

@@ -2,9 +2,10 @@ use log::info;
 
 use crate::api::manage_inject::UpdateInput;
 use crate::api::Client;
+use crate::common::constants::STATUS_ERROR;
 use crate::common::error_model::Error;
+use crate::common::execution_result::ExecutionResult;
 use crate::handle::{ExecutionOutput, ExecutionParam};
-use crate::process::command_exec::ExecutionResult;
 
 const PREVIEW_LOGS_SIZE: usize = 100000;
 
@@ -58,7 +59,7 @@ pub fn handle_execution_result(
                     params.tenant_id.clone(),
                     UpdateInput {
                         execution_message: info_message,
-                        execution_status: String::from("ERROR"),
+                        execution_status: String::from(STATUS_ERROR),
                         execution_duration: elapsed,
                         execution_action: String::from(params.semantic.as_str()),
                     },
@@ -97,7 +98,7 @@ pub fn handle_execution_result(
                 params.tenant_id.clone(),
                 UpdateInput {
                     execution_message,
-                    execution_status: String::from("ERROR"),
+                    execution_status: String::from(STATUS_ERROR),
                     execution_duration: elapsed,
                     execution_action: params.semantic.clone(),
                 },
