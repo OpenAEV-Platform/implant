@@ -1,6 +1,6 @@
 [package]
 name = "openaev-implant"
-version = "2.3.3"
+version = "2.3.4"
 edition = "2021"
 
 
@@ -16,7 +16,7 @@ rolling-file = "0.2.0"
 clap = { version = "4.5.7", features = ["derive"] }
 mailparse = "0.16.0"
 percent-encoding ="2.3.2"
-rustls-webpki = ">0.103.9"
+rustls-webpki = ">0.103.12"
 
 [dev-dependencies]
 mockito = "1.7.0"
