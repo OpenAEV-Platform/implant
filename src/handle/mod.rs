@@ -18,5 +18,6 @@ pub struct ExecutionParam {
     pub semantic: String,
     pub inject_id: String,
     pub agent_id: String,
+    pub tenant_id: String,
     pub max_size: usize,
 }

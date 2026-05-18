@@ -1,6 +1,7 @@
 use super::Client;
 use crate::common::error_model::Error;
 use crate::process::exec_utils::decode_filename;
+use crate::process::file_exec::get_output_path;
 use log::{error, info};
 use mailparse::{parse_content_disposition, parse_header};
 use reqwest::blocking::Response;
@@ -9,10 +10,9 @@ use serde::{Deserialize, Serialize};
 use serde_json::json;
 use std::fs::File;
 use std::io::{BufWriter, Write};
-use std::path::PathBuf;
 use std::thread::sleep;
 use std::time::Duration;
-use std::{env, fs, io};
+use std::{fs, io};
 
 pub fn write_response<W>(writer: W, response: reqwest::blocking::Response) -> std::io::Result<u64>
 where
@@ -85,10 +85,11 @@ impl Client {
         &self,
         inject_id: &str,
         agent_id: &str,
+        tenant_id: &str,
     ) -> Result<InjectorContractPayload, Error> {
         match self
             .get(&format!(
-                "/api/injects/{inject_id}/{agent_id}/executable-payload"
+                "/api/tenants/{tenant_id}/injects/{inject_id}/{agent_id}/executable-payload"
             ))
             .send()
         {
@@ -112,28 +113,30 @@ impl Client {
         &self,
         inject_id: String,
         agent_id: String,
+        tenant_id: String,
         input: UpdateInput,
     ) -> Result<UpdateInjectResponse, Error> {
-        self.update_status_retry(inject_id, agent_id, input, 20)
+        self.update_status_retry(inject_id, agent_id, tenant_id, input, 20)
     }
 
     fn update_status_retry(
         &self,
         inject_id: String,
         agent_id: String,
+        tenant_id: String,
         input: UpdateInput,
         retry: u64,
     ) -> Result<UpdateInjectResponse, Error> {
         let post_data = json!(input);
         match self
             .post(&format!(
-                "/api/injects/execution/{agent_id}/callback/{inject_id}"
+                "/api/tenants/{tenant_id}/injects/execution/{agent_id}/callback/{inject_id}"
             ))
             .json(&post_data)
             .send()
         {
             Ok(response) => {
-                self.update_status_response(response, inject_id, agent_id, input, retry)
+                self.update_status_response(response, inject_id, agent_id, tenant_id, input, retry)
             }
             Err(err) => Err(Error::Internal(err.to_string())),
         }
@@ -144,6 +147,7 @@ impl Client {
         response: Response,
         inject_id: String,
         agent_id: String,
+        tenant_id: String,
         input: UpdateInput,
         retry: u64,
     ) -> Result<UpdateInjectResponse, Error> {
@@ -155,7 +159,7 @@ impl Client {
         } else if response.status().is_client_error() && retry > 0 {
             sleep(Duration::from_secs(10));
             info!("retry {retry:?} to update status for inject id: {inject_id:?} and agent id: {agent_id:?}");
-            self.update_status_retry(inject_id, agent_id, input, retry - 1)
+            self.update_status_retry(inject_id, agent_id, tenant_id, input, retry - 1)
         } else {
             let msg = response
                 .text()
@@ -165,9 +169,16 @@ impl Client {
         }
     }
 
-    pub fn download_file(&self, document_id: &String, in_memory: bool) -> Result<String, Error> {
+    pub fn download_file(
+        &self,
+        document_id: &String,
+        tenant_id: String,
+        in_memory: bool,
+    ) -> Result<String, Error> {
         match self
-            .get(&format!("/api/documents/{document_id}/file"))
+            .get(&format!(
+                "/api/tenants/{tenant_id}/documents/{document_id}/file"
+            ))
             .send()
         {
             Ok(response) => {
@@ -218,20 +229,4 @@ fn extract_filename(response: &Response) -> Result<String, Error> {
         .get("filename")
         .map(|s| s.to_string())
         .ok_or_else(|| Error::Internal("Filename not found".to_string()))
-}
-
-fn get_output_path(filename: &str) -> Result<PathBuf, Error> {
-    let current_exe_path = env::current_exe()
-        .map_err(|e| Error::Internal(format!("Cannot get current executable path: {e}")))?;
-    let parent_path = current_exe_path.parent().ok_or_else(|| {
-        Error::Internal("Cannot determine executable parent directory".to_string())
-    })?;
-
-    // Resolve the payloads path and create it on the fly
-    let folder_name = parent_path.file_name().unwrap().to_str().unwrap();
-    let parent_parent_path = parent_path.parent().unwrap().parent().ok_or_else(|| {
-        Error::Internal("Cannot determine parent directory of parent".to_string())
-    })?;
-    let payloads_path = parent_parent_path.join("payloads").join(folder_name);
-    Ok(payloads_path.join(filename))
 }

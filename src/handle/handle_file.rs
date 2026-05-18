@@ -7,13 +7,14 @@ use crate::api::Client;
 use crate::common::error_model::Error;
 use crate::handle::handle_execution::handle_execution_result;
 use crate::handle::ExecutionParam;
-use crate::process::file_exec::file_execution;
+use crate::process::file_exec::{delete_file, file_execution};
 
 pub fn handle_execution_file(
     semantic: &str,
     api: &Client,
     inject_id: String,
     agent_id: String,
+    tenant_id: String,
     filename: &String,
     max_size: usize,
 ) -> i32 {
@@ -26,6 +27,7 @@ pub fn handle_execution_file(
             semantic: semantic.to_owned(),
             inject_id,
             agent_id,
+            tenant_id,
             max_size,
         },
         api,
@@ -37,6 +39,7 @@ pub fn handle_execution_file(
 pub fn handle_file(
     inject_id: String,
     agent_id: String,
+    tenant_id: String,
     api: &Client,
     file_target: &Option<String>,
     in_memory: bool,
@@ -46,9 +49,13 @@ pub fn handle_file(
             let stderr = String::from("Payload download fail, document not specified");
             report_error(
                 api,
-                "file_drop",
-                inject_id.clone(),
-                agent_id.clone(),
+                &ExecutionParam {
+                    semantic: "file_drop".parse().unwrap(),
+                    inject_id: inject_id.clone(),
+                    agent_id: agent_id.clone(),
+                    tenant_id: tenant_id.clone(),
+                    max_size: 0,
+                },
                 None,
                 stderr.clone(),
                 0,
@@ -57,29 +64,38 @@ pub fn handle_file(
         }
         Some(document_id) => {
             let now = Instant::now();
-            let download = api.download_file(document_id, in_memory);
+            let download = api.download_file(document_id, tenant_id.clone(), in_memory);
             let elapsed = now.elapsed().as_millis();
             match download {
                 Ok(filename) => {
                     let stdout = String::from("File downloaded with success");
                     report_success(
                         api,
-                        "file_drop",
-                        inject_id.clone(),
-                        agent_id.clone(),
+                        &ExecutionParam {
+                            semantic: "file_drop".parse().unwrap(),
+                            inject_id: inject_id.clone(),
+                            agent_id: agent_id.clone(),
+                            tenant_id: tenant_id.clone(),
+                            max_size: 0,
+                        },
                         stdout,
                         None,
                         elapsed,
                     );
+                    delete_file(&filename)?;
                     Ok(filename)
                 }
                 Err(err) => {
                     let stderr = format!("{err:?}");
                     report_error(
                         api,
-                        "file_drop",
-                        inject_id.clone(),
-                        agent_id.clone(),
+                        &ExecutionParam {
+                            semantic: "file_drop".parse().unwrap(),
+                            inject_id: inject_id.clone(),
+                            agent_id: agent_id.clone(),
+                            tenant_id: tenant_id.clone(),
+                            max_size: 0,
+                        },
                         None,
                         stderr,
                         elapsed,

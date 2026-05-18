@@ -46,6 +46,7 @@ pub fn handle_execution_command(
 pub fn handle_command(
     inject_id: String,
     agent_id: String,
+    tenant_id: String,
     api: &Client,
     contract_payload: &InjectorContractPayload,
     max_size: usize,
@@ -57,6 +58,7 @@ pub fn handle_command(
             semantic: String::from("command_execution"),
             inject_id: inject_id.clone(),
             agent_id: agent_id.clone(),
+            tenant_id: tenant_id.clone(),
             max_size,
         },
         api,
