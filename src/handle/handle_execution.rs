@@ -1,4 +1,4 @@
-use log::info;
+use log::{error, info, warn};
 
 use crate::api::manage_inject::UpdateInput;
 use crate::api::Client;
@@ -34,16 +34,13 @@ pub fn handle_execution_result(
                 let mut truncated_stderr = stderr.clone();
                 truncated_stdout.truncate(PREVIEW_LOGS_SIZE);
                 truncated_stderr.truncate(PREVIEW_LOGS_SIZE);
-                info!(
-                    "{} execution stdout: {:?}",
-                    params.semantic,
-                    truncated_stdout.clone()
-                );
-                info!(
-                    "{} execution stderr: {:?}",
-                    params.semantic,
-                    truncated_stderr.clone()
-                );
+                if !truncated_stderr.is_empty() {
+                    warn!(
+                        "{} execution stderr: {:?}",
+                        params.semantic,
+                        truncated_stderr.clone()
+                    );
+                }
 
                 // And we set the inject into an ERROR status with some traces
                 let error_message = ExecutionOutput {
@@ -65,8 +62,9 @@ pub fn handle_execution_result(
                     },
                 );
             } else {
-                info!("{} execution stdout: {:?}", params.semantic, stdout.clone());
-                info!("{} execution stderr: {:?}", params.semantic, stderr.clone());
+                if !stderr.is_empty() {
+                    warn!("{} execution stderr: {:?}", params.semantic, stderr.clone());
+                }
                 let _ = api.update_status(
                     params.inject_id.clone(),
                     params.agent_id.clone(),
@@ -83,7 +81,7 @@ pub fn handle_execution_result(
             res.exit_code
         }
         Err(err) => {
-            info!("implant execution error: {err:?}");
+            error!("implant execution error: {err:?}");
             let stderr = format!("{err:?}");
             let stdout = String::new();
             let message = ExecutionOutput {
