@@ -29,6 +29,18 @@ where
     io::copy(&mut content.as_slice(), &mut writer)
 }
 
+/// Log-safe summary of an HTTP response (status only, no headers)
+fn safe_response_summary(response: &Response) -> String {
+    format!(
+        "HTTP {} {}",
+        response.status().as_u16(),
+        response
+            .status()
+            .canonical_reason()
+            .unwrap_or("Unknown"),
+    )
+}
+
 #[derive(Debug, Deserialize)]
 pub struct PayloadArg {
     pub r#type: String,
@@ -152,7 +164,12 @@ impl Client {
         retry: u64,
     ) -> Result<UpdateInjectResponse, Error> {
         if response.status().is_success() {
-            info!("response {response:?} to update status for inject id: {inject_id:?} and agent id: {agent_id:?}");
+            info!(
+                "{} — update status for inject_id={:?}, agent_id={:?}",
+                safe_response_summary(&response),
+                inject_id,
+                agent_id
+            );
             response
                 .json::<UpdateInjectResponse>()
                 .map_err(|e| Error::Internal(e.to_string()))
