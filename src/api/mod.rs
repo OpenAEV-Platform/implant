@@ -6,11 +6,19 @@ pub mod manage_reporting;
 pub const VERSION: &str = env!("CARGO_PKG_VERSION");
 pub const AUTHORIZATION_HEADER: &str = "Authorization";
 
-#[derive(Debug)]
 pub struct Client {
     http_client: reqwest::blocking::Client,
     server_url: String,
     token: String,
+}
+
+impl std::fmt::Debug for Client {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("Client")
+            .field("server_url", &self.server_url)
+            .field("token", &"[REDACTED]")
+            .finish()
+    }
 }
 
 impl Client {
