@@ -152,7 +152,12 @@ impl Client {
         retry: u64,
     ) -> Result<UpdateInjectResponse, Error> {
         if response.status().is_success() {
-            info!("response {response:?} to update status for inject id: {inject_id:?} and agent id: {agent_id:?}");
+            info!(
+                "response {} to update status for inject id: {:?} and agent id: {:?}",
+                response.status(),
+                inject_id,
+                agent_id
+            );
             response
                 .json::<UpdateInjectResponse>()
                 .map_err(|e| Error::Internal(e.to_string()))
