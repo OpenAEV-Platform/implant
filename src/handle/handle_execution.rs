@@ -1,4 +1,4 @@
-use log::{error, info, warn};
+use log::{error, warn};
 
 use crate::api::manage_inject::UpdateInput;
 use crate::api::Client;
