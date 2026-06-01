@@ -25,6 +25,7 @@ jobs:
   quality:
     name: "🔍 Quality gates (fmt + audit)"
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     steps:
       - name: Checkout code
         uses: actions/checkout@v6
@@ -67,6 +68,7 @@ jobs:
   clippy:
     name: "🧹 Clippy (${{ matrix.os }})"
     runs-on: ${{ matrix.runner }}
+    timeout-minutes: 20
     env:
       IS_MUSL_UBUNTU: ${{ matrix.os == 'ubuntu' }}
     strategy:
@@ -118,6 +120,7 @@ jobs:
   tests:
     name: "🧪 Tests (${{ matrix.os }}-${{ matrix.arch }})"
     runs-on: ${{ matrix.runner }}
+    timeout-minutes: 20
     env:
       IS_MUSL_UBUNTU: ${{ (matrix.os == 'ubuntu' && contains(matrix.target, 'musl')) }}
     strategy:
@@ -185,6 +188,7 @@ jobs:
   coverage:
     name: "📊 Coverage"
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     steps:
       - name: Checkout code
         uses: actions/checkout@v6
@@ -231,6 +235,7 @@ jobs:
   build:
     name: "🔨 Build (${{ matrix.os }}-${{ matrix.arch }})"
     runs-on: ${{ matrix.runner }}
+    timeout-minutes: 60
     env:
       IS_MUSL_UBUNTU: ${{ (matrix.os == 'ubuntu' && contains(matrix.target, 'musl')) }}
     strategy:
