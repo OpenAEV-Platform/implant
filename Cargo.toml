@@ -1,6 +1,6 @@
 [package]
 name = "openaev-implant"
-version = "2.260601.0"
+version = "2.260603.0"
 edition = "2021"
 
 
