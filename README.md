@@ -4,6 +4,7 @@
 [![CircleCI](https://circleci.com/gh/OpenAEV-Platform/implant.svg?style=shield)](https://circleci.com/gh/OpenAEV-Platform/implant/tree/main)
 [![GitHub release](https://img.shields.io/github/release/OpenAEV-Platform/implant.svg)](https://github.com/OpenAEV-Platform/implant/releases/latest)
 [![Slack Status](https://img.shields.io/badge/slack-3K%2B%20members-4A154B)](https://community.filigran.io)
+[![codecov](https://codecov.io/gh/OpenAEV-Platform/implant/graph/badge.svg)](https://codecov.io/gh/OpenAEV-Platform/implant)
 
 The following repository is used to store the OpenAEV implant for the platform. For performance and low level access, the agent is written in Rust. Please start your journey with https://doc.rust-lang.org/book.
 
