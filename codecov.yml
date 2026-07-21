@@ -1,0 +1,28 @@
+codecov:
+  notify:
+    after_n_builds: 1
+
+coverage:
+  status:
+    project:
+      implant:
+        target: auto
+        informational: true
+        flags:
+          - implant
+    patch:
+      implant:
+        target: 80%
+        informational: true
+        flags:
+          - implant
+
+flags:
+  implant:
+    paths:
+      - src/
+
+comment:
+  layout: "reach,diff,flags,tree"
+  behavior: default
+  require_changes: true
