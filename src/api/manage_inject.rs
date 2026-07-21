@@ -56,6 +56,9 @@ pub struct InjectorContractPayload {
     pub executable_file: Option<String>,
     // DnsResolution
     pub dns_resolution_hostname: Option<String>,
+    // Clear zip password for an encrypted malware sample; when present the downloaded file is a
+    // password-protected zip that must be decrypted in memory before it is dropped/executed.
+    pub payload_sample_zip_password: Option<String>,
     // Prerequisites
     pub payload_prerequisites: Option<Vec<PayloadPrerequisite>>,
     // Command
@@ -180,14 +183,28 @@ impl Client {
         tenant_id: String,
         in_memory: bool,
     ) -> Result<String, Error> {
+        self.download_file_maybe_encrypted(document_id, tenant_id, in_memory, &None)
+    }
+
+    /// Download a file by id. When `sample_zip_password` is set, the downloaded object is a
+    /// password-protected zip (a malware sample): it is buffered and decrypted in memory, and the
+    /// single contained entry is written out as the working file, just before detonation.
+    pub fn download_file_maybe_encrypted(
+        &self,
+        document_id: &String,
+        tenant_id: String,
+        in_memory: bool,
+        sample_zip_password: &Option<String>,
+    ) -> Result<String, Error> {
         match self
-            .get(&format!(
-                "/api/tenants/{tenant_id}/documents/{document_id}/file"
-            ))
+            .get(&format!("/api/tenants/{tenant_id}/files/{document_id}/file"))
             .send()
         {
             Ok(response) => {
                 if response.status().is_success() {
+                    if let Some(password) = sample_zip_password {
+                        return decrypt_sample_to_disk(response, password);
+                    }
                     let name = extract_filename(&response)?;
                     let decoded_name = decode_filename(&name)?;
                     let output_path = get_output_path(&decoded_name)?;
@@ -214,6 +231,37 @@ impl Client {
                 }
             }
             Err(err) => Err(Error::Internal(err.to_string())),
+        }
+    }
+}
+
+/// Read the encrypted-zip response fully, decrypt its single entry with the given password, and
+/// write the plaintext sample to the working payloads directory. Returns the extracted file name.
+fn decrypt_sample_to_disk(
+    response: Response,
+    password: &str,
+) -> Result<String, Error> {
+    let bytes = response
+        .bytes()
+        .map_err(|e| Error::Internal(e.to_string()))?
+        .to_vec();
+    let reader = std::io::Cursor::new(bytes);
+    let mut archive =
+        zip::ZipArchive::new(reader).map_err(|e| Error::Internal(e.to_string()))?;
+    let mut entry = archive
+        .by_index_decrypt(0, password.as_bytes())
+        .map_err(|e| Error::Internal(e.to_string()))?;
+    let entry_name = entry
+        .enclosed_name()
+        .and_then(|p| p.file_name().map(|n| n.to_string_lossy().to_string()))
+        .unwrap_or_else(|| "sample".to_string());
+    let output_path = get_output_path(&entry_name)?;
+    let mut output_file = File::create(output_path.clone())?;
+    match io::copy(&mut entry, &mut output_file) {
+        Ok(_) => Ok(entry_name),
+        Err(err) => {
+            let _ = fs::remove_file(output_path);
+            Err(Error::Io(err))
         }
     }
 }

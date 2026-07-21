@@ -17,7 +17,7 @@ mod tests {
         let content_disposition = format!("attachment; filename=\"{}\"", filename);
 
         let _m = server
-            .mock("GET", "/api/tenants/test-tenant/documents/123/file")
+            .mock("GET", "/api/tenants/test-tenant/files/123/file")
             .with_status(200)
             .with_header("content-disposition", &content_disposition)
             .with_body(file_content)
@@ -61,7 +61,7 @@ mod tests {
         let content_disposition = format!("attachment; filename=\"{}\"", filename);
 
         let _m = server
-            .mock("GET", "/api/tenants/test-tenant/documents/123/file")
+            .mock("GET", "/api/tenants/test-tenant/files/123/file")
             .with_status(200)
             .with_header("content-disposition", &content_disposition)
             .with_body(file_content)
