@@ -14,7 +14,6 @@ concurrency:
 
 permissions:
   contents: read
-  id-token: write
 
 jobs:
   # ──────────────────────────────────────────────────────────────────
@@ -223,7 +222,7 @@ jobs:
       - name: Upload coverage to Codecov
         uses: codecov/codecov-action@v7
         with:
-          use_oidc: true
+          token: ${{ secrets.CODECOV_TOKEN }}
           files: lcov.info
           flags: implant
           disable_search: true
