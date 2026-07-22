@@ -197,7 +197,9 @@ impl Client {
         sample_zip_password: &Option<String>,
     ) -> Result<String, Error> {
         match self
-            .get(&format!("/api/tenants/{tenant_id}/files/{document_id}/file"))
+            .get(&format!(
+                "/api/tenants/{tenant_id}/files/{document_id}/file"
+            ))
             .send()
         {
             Ok(response) => {
@@ -237,20 +239,29 @@ impl Client {
 
 /// Read the encrypted-zip response fully, decrypt its single entry with the given password, and
 /// write the plaintext sample to the working payloads directory. Returns the extracted file name.
-fn decrypt_sample_to_disk(
-    response: Response,
-    password: &str,
-) -> Result<String, Error> {
+fn decrypt_sample_to_disk(response: Response, password: &str) -> Result<String, Error> {
     let bytes = response
         .bytes()
         .map_err(|e| Error::Internal(e.to_string()))?
         .to_vec();
     let reader = std::io::Cursor::new(bytes);
-    let mut archive =
-        zip::ZipArchive::new(reader).map_err(|e| Error::Internal(e.to_string()))?;
+    let mut archive = zip::ZipArchive::new(reader).map_err(|e| Error::Internal(e.to_string()))?;
+    // The Files feature ships one sample per encrypted zip; reject anything else so we never
+    // silently detonate the wrong entry.
+    if archive.len() != 1 {
+        return Err(Error::Internal(format!(
+            "Encrypted sample archive must contain exactly one entry, found {}",
+            archive.len()
+        )));
+    }
     let mut entry = archive
         .by_index_decrypt(0, password.as_bytes())
         .map_err(|e| Error::Internal(e.to_string()))?;
+    if entry.is_dir() {
+        return Err(Error::Internal(
+            "Encrypted sample archive entry is a directory, expected a file".to_string(),
+        ));
+    }
     let entry_name = entry
         .enclosed_name()
         .and_then(|p| p.file_name().map(|n| n.to_string_lossy().to_string()))
