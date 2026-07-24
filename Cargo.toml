@@ -10,6 +10,7 @@ rolling-file = "0.2.0"
 mailparse = "0.16.0"
 percent-encoding = "2.3.2"
 rustls-webpki = ">0.103.12"
+zip = { version = "2.2.0", default-features = false, features = ["aes-crypto", "deflate"] }
 
 [dependencies.reqwest]
 version = "0.12.28"
