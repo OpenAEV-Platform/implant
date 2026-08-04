@@ -11,7 +11,9 @@ pub fn handle_file_execute(
     max_size: usize,
 ) {
     let InjectorContractPayload {
-        executable_file, ..
+        executable_file,
+        payload_sample_zip_password,
+        ..
     } = contract_payload;
     let handle_file = handle_file(
         inject_id.clone(),
@@ -20,6 +22,7 @@ pub fn handle_file_execute(
         api,
         executable_file,
         false,
+        payload_sample_zip_password,
     );
     match handle_file {
         Ok(filename) => {
