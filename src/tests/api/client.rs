@@ -102,7 +102,7 @@ mod tests {
         // whereas test_unsecured_certificate_acceptance stays green because it asserts rejection.
         let client = Client::new(
             "https://sha256.badssl.com/".to_string(),
-            TOKEN.to_string(),
+            TOKEN_TEST.to_string(),
             false,
             false,
         );
