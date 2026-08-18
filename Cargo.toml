@@ -15,8 +15,7 @@ rustls-webpki = ">0.103.12"
 version = "0.13.0"
 features = [
     "blocking",
-    "rustls-tls",
-    "rustls-tls-native-roots",
+    "rustls",
     "json",
 ]
 default-features = false
