@@ -7,16 +7,16 @@ edition = "2021"
 base64 = "0.23.0"
 tracing-appender = "0.2.4"
 rolling-file = "0.2.0"
+webpki-root-certs = "1.0.9"
 mailparse = "0.16.0"
 percent-encoding = "2.3.2"
 rustls-webpki = ">0.103.12"
 
 [dependencies.reqwest]
-version = "0.12.28"
+version = "0.13.0"
 features = [
     "blocking",
-    "rustls-tls",
-    "rustls-tls-native-roots",
+    "rustls",
     "json",
 ]
 default-features = false
