@@ -174,6 +174,24 @@ impl Client {
         }
     }
 
+    /// Downloads a document (dropped file / executable payload) as the service-account (implant)
+    /// token.
+    ///
+    /// TEMPORARY (#294): this uses the dedicated `.../agent-file` route, scoped server-side via
+    /// `AGENT_DOCUMENT_ACCESS` / `AGENT_DOCUMENT_READ`, so the service-account token never needs
+    /// the `SEARCH` capability (platform-wide document listing). This is DISTINCT from the human
+    /// route `.../documents/{document_id}/file`, which stays reserved for human users via
+    /// `ACCESS_DOCUMENTS` / `READ`. Revert to `/file` once #294's durable per-document scoping
+    /// lands on the server.
+    ///
+    /// ⚠️ RELEASE SYNC: the `agent-file` segment must match the server. The implant binary is
+    /// published to JFrog (`openaev-implant`) and pinned into an OpenAEV release at build time by
+    /// `core-engine/scripts/download-binaries.sh` (bundled under
+    /// `openaev-api/src/main/resources/implants/` and served by `InjectorApi.downloadImplant`).
+    /// This change MUST ship in the SAME OpenAEV release as the server route change: a pre-change
+    /// implant against a post-change server (or the reverse) would 404 every in-flight inject file
+    /// download. When cutting the release, ensure the implant version pinned by
+    /// `download-binaries.sh` is a build that contains this commit.
     pub fn download_file(
         &self,
         document_id: &String,
@@ -182,7 +200,8 @@ impl Client {
     ) -> Result<String, Error> {
         match self
             .get(&format!(
-                "/api/tenants/{tenant_id}/documents/{document_id}/file"
+                // TEMPORARY (#294): service-account route, distinct from the human `/file` route.
+                "/api/tenants/{tenant_id}/documents/{document_id}/agent-file"
             ))
             .send()
         {
