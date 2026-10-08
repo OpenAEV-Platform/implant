@@ -96,9 +96,11 @@ pub fn get_output_path(filename: &str) -> Result<PathBuf, Error> {
     })?;
     let payloads_path = parent_parent_path.join("payloads").join(folder_name);
     let output_path = payloads_path.join(&filename);
-    // Defense in depth: the resolved file must stay directly inside the payloads
-    // root, even if the filename validation above is ever loosened. `parent()`
-    // does not resolve `..`, hence the `file_name()` check as well.
+    // Defense in depth against a loosened filename validation: lexically, the
+    // path must be a direct child of the payloads root. `parent()` does not
+    // resolve `..`, hence the `file_name()` check as well. This only checks the
+    // path's shape: it does not resolve symlinks or reparse points, so it does
+    // not stop I/O from following an existing link out of the directory.
     if output_path.parent() != Some(payloads_path.as_path())
         || output_path.file_name() != Some(OsStr::new(&filename))
     {
