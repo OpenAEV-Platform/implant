@@ -1,3 +1,4 @@
+use std::ffi::OsStr;
 use std::path::PathBuf;
 use std::process::{Command, Stdio};
 use std::{env, fs};
@@ -8,27 +9,7 @@ use crate::common::constants::EXECUTOR_BASH;
 use crate::common::constants::EXECUTOR_POWERSHELL;
 use crate::common::error_model::Error;
 use crate::common::execution_result::{handle_io_error, manage_result, ExecutionResult};
-use crate::process::exec_utils::is_executor_present;
-
-fn compute_working_file(filename: &str) -> PathBuf {
-    let current_exe_path = env::current_exe()
-        .map_err(|e| Error::Internal(format!("Cannot get current executable path: {e}")))
-        .expect("Cannot get current executable path");
-    let parent_path = current_exe_path
-        .parent()
-        .ok_or_else(|| Error::Internal("Cannot determine executable parent directory".to_string()))
-        .expect("Cannot determine executable parent directory");
-    // Resolve the payloads path and create it on the fly
-    let folder_name = parent_path.file_name().unwrap().to_str().unwrap();
-    let parent_parent_path = parent_path
-        .parent()
-        .unwrap()
-        .parent()
-        .ok_or_else(|| Error::Internal("Cannot determine parent directory of parent".to_string()))
-        .expect("Cannot determine parent directory of parent");
-    let executable_path = parent_parent_path.join("payloads").join(folder_name);
-    executable_path.join(filename)
-}
+use crate::process::exec_utils::{is_executor_present, sanitize_filename};
 
 #[cfg(windows)]
 pub fn file_execution(filename: &str) -> Result<ExecutionResult, Error> {
@@ -38,7 +19,7 @@ pub fn file_execution(filename: &str) -> Result<ExecutionResult, Error> {
             "Executor '{executor}' is not available."
         )));
     }
-    let script_file_name = compute_working_file(filename);
+    let script_file_name = get_output_path(filename)?;
     let win_path = format!(
         "$ErrorActionPreference = 'Stop'; & '{}'; exit $LASTEXITCODE",
         script_file_name.to_str().unwrap()
@@ -74,7 +55,7 @@ pub fn file_execution(filename: &str) -> Result<ExecutionResult, Error> {
             "Executor '{executor}' is not available."
         )));
     }
-    let script_file_name = compute_working_file(filename);
+    let script_file_name = get_output_path(filename)?;
     // Prepare and execute the command
     let command_args = &[script_file_name.to_str().unwrap()];
     let invoke_output = Command::new(executor)
@@ -98,7 +79,10 @@ pub fn delete_file(filename: &str) -> Result<(), Error> {
     Ok(())
 }
 
+/// Resolves `filename` inside the payloads directory. Every path built from a
+/// server-supplied filename (write, delete, execution) must go through here.
 pub fn get_output_path(filename: &str) -> Result<PathBuf, Error> {
+    let filename = sanitize_filename(filename)?;
     let current_exe_path = env::current_exe()
         .map_err(|e| Error::Internal(format!("Cannot get current executable path: {e}")))?;
     let parent_path = current_exe_path.parent().ok_or_else(|| {
@@ -111,5 +95,17 @@ pub fn get_output_path(filename: &str) -> Result<PathBuf, Error> {
         Error::Internal("Cannot determine parent directory of parent".to_string())
     })?;
     let payloads_path = parent_parent_path.join("payloads").join(folder_name);
-    Ok(payloads_path.join(filename))
+    let output_path = payloads_path.join(&filename);
+    // Defense in depth: the resolved file must stay directly inside the payloads
+    // root, even if the filename validation above is ever loosened. `parent()`
+    // does not resolve `..`, hence the `file_name()` check as well.
+    if output_path.parent() != Some(payloads_path.as_path())
+        || output_path.file_name() != Some(OsStr::new(&filename))
+    {
+        return Err(Error::Internal(format!(
+            "Resolved path escapes the payloads directory: {}",
+            output_path.display()
+        )));
+    }
+    Ok(output_path)
 }
