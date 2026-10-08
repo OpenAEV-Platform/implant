@@ -209,6 +209,7 @@ impl Client {
                 if response.status().is_success() {
                     let name = extract_filename(&response)?;
                     let decoded_name = decode_filename(&name)?;
+                    // Rejects any traversal in the server-supplied filename.
                     let output_path = get_output_path(&decoded_name)?;
                     if in_memory {
                         let buf = BufWriter::new(Vec::new());
