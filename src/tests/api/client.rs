@@ -110,9 +110,14 @@ mod tests {
         let Err(err) = client.get("").send() else {
             return;
         };
+        // a timeout says nothing about trust, and the probe may still succeed on a warm retry
+        if err.is_timeout() {
+            eprintln!("skipped, {valid_ssl_url} timed out: {err:?}");
+            return;
+        }
         // the probe skips chain validation, so its own failure means the host is down
         match reachability_probe.get("").send() {
-            Ok(_) => panic!("Client should trust a publicly valid certificate: {err}"),
+            Ok(_) => panic!("Client should trust a publicly valid certificate: {err:?}"),
             Err(probe_err) => eprintln!("skipped, {valid_ssl_url} is unreachable: {probe_err}"),
         }
     }
