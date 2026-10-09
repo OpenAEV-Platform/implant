@@ -1,6 +1,7 @@
 #[cfg(test)]
 mod tests {
-    use crate::process::exec_utils::decode_filename;
+    use crate::process::exec_utils::{decode_filename, sanitize_filename};
+    use crate::process::file_exec::get_output_path;
     use mockito;
     use std::fs::create_dir_all;
     use std::io::Read;
@@ -175,5 +176,132 @@ mod tests {
         let input = "%FF%20file.txt";
         let result = decode_filename(input);
         assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_sanitize_filename_accepts_plain_names() {
+        for name in [
+            "test.txt",
+            "rapport final.pdf",
+            "résumé📄.docx",
+            "archive-2025!.zip",
+            "..dotfile.txt",
+            "file..name.bin",
+        ] {
+            assert_eq!(sanitize_filename(name).unwrap(), name);
+        }
+    }
+
+    #[test]
+    fn test_sanitize_filename_rejects_traversal() {
+        for name in [
+            "",
+            "..",
+            ".",
+            "../x.txt",
+            "../../traversal_plain.txt",
+            "..\\..\\traversal_windows.txt",
+            "a/b.txt",
+            "a\\b.txt",
+            "/etc/passwd",
+            "C:\\windows\\system32\\evil.dll",
+            "with\0nul.txt",
+        ] {
+            assert!(
+                sanitize_filename(name).is_err(),
+                "expected {name:?} to be rejected"
+            );
+        }
+    }
+
+    // Write, delete and execution paths all resolve through get_output_path.
+    #[test]
+    fn test_get_output_path_stays_in_payloads_directory() {
+        let path = get_output_path("payload.sh").unwrap();
+        assert_eq!(path.file_name().unwrap(), "payload.sh");
+        assert_eq!(
+            path.parent()
+                .unwrap()
+                .parent()
+                .unwrap()
+                .file_name()
+                .unwrap(),
+            "payloads"
+        );
+
+        for name in ["..", "../x.sh", "..%2Fx.sh", "/etc/cron.d/x", "a\\b.sh"] {
+            let name = decode_filename(name).unwrap();
+            assert!(
+                get_output_path(&name).is_err(),
+                "expected {name:?} to be rejected"
+            );
+        }
+    }
+
+    // A C2 server returning a plain traversal filename in Content-Disposition
+    // must not cause a write outside the payloads directory.
+    #[test]
+    fn test_download_file_rejects_path_traversal() {
+        let mut server = mockito::Server::new();
+        let server_url = server.url();
+
+        let content_disposition = "attachment; filename=\"../../traversal_plain.txt\"";
+        let _m = server
+            .mock("GET", "/api/tenants/test-tenant/documents/123/agent-file")
+            .with_status(200)
+            .with_header("content-disposition", content_disposition)
+            .with_body("owned")
+            .create();
+
+        let client = crate::api::Client::new(
+            server_url,
+            crate::tests::api::client::TOKEN_TEST.to_string(),
+            false,
+            false,
+        );
+
+        let result = client.download_file(&"123".to_string(), "test-tenant".to_string(), false);
+
+        assert!(result.is_err(), "traversal filename must be rejected");
+        assert!(!escaped_target("traversal_plain.txt").exists());
+    }
+
+    // The percent-encoded traversal variant resolves to the same path once
+    // decoded and must be rejected just the same.
+    #[test]
+    fn test_download_file_rejects_encoded_path_traversal() {
+        let mut server = mockito::Server::new();
+        let server_url = server.url();
+
+        let content_disposition = "attachment; filename=\"..%2F..%2Ftraversal_encoded.txt\"";
+        let _m = server
+            .mock("GET", "/api/tenants/test-tenant/documents/123/agent-file")
+            .with_status(200)
+            .with_header("content-disposition", content_disposition)
+            .with_body("owned")
+            .create();
+
+        let client = crate::api::Client::new(
+            server_url,
+            crate::tests::api::client::TOKEN_TEST.to_string(),
+            false,
+            false,
+        );
+
+        let result = client.download_file(&"123".to_string(), "test-tenant".to_string(), false);
+
+        assert!(
+            result.is_err(),
+            "percent-encoded traversal filename must be rejected"
+        );
+        assert!(!escaped_target("traversal_encoded.txt").exists());
+    }
+
+    // Path the traversal payloads would land on if `..` were honoured, i.e. two
+    // levels above the payloads directory root.
+    fn escaped_target(name: &str) -> std::path::PathBuf {
+        let current_exe_path = env::current_exe().unwrap();
+        let parent_path = current_exe_path.parent().unwrap();
+        parent_path.parent().unwrap().parent().unwrap().join(name)
     }
 }
