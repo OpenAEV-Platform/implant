@@ -366,3 +366,69 @@ jobs:
           path: staging/
           if-no-files-found: error
           retention-days: 14
+
+  # ──────────────────────────────────────────────────────────────────
+  # Smoke-test the release binaries on every supported OS version,
+  # including ones the build does not run on. A mock platform serves
+  # a command payload; the implant must run it with each native
+  # executor and report its output back.
+  # ──────────────────────────────────────────────────────────────────
+  smoke:
+    name: "💨 Smoke (${{ matrix.runner }})"
+    needs: build
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 10
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - runner: ubuntu-22.04
+            artifact: ubuntu-x86_64
+            bin: linux/x86_64/openaev-implant
+          - runner: ubuntu-26.04
+            artifact: ubuntu-x86_64
+            bin: linux/x86_64/openaev-implant
+          - runner: ubuntu-22.04-arm
+            artifact: ubuntu-arm64
+            bin: linux/arm64/openaev-implant
+          - runner: ubuntu-26.04-arm
+            artifact: ubuntu-arm64
+            bin: linux/arm64/openaev-implant
+          - runner: windows-2022
+            artifact: windows-x86_64
+            bin: windows/x86_64/openaev-implant.exe
+          - runner: windows-2025
+            artifact: windows-x86_64
+            bin: windows/x86_64/openaev-implant.exe
+          - runner: windows-11-arm
+            artifact: windows-arm64
+            bin: windows/arm64/openaev-implant.exe
+          - runner: macos-15
+            artifact: macos-arm64
+            bin: macos/arm64/openaev-implant
+          - runner: macos-26
+            artifact: macos-arm64
+            bin: macos/arm64/openaev-implant
+          - runner: macos-15-intel
+            artifact: macos-x86_64
+            bin: macos/x86_64/openaev-implant
+          - runner: macos-26-intel
+            artifact: macos-x86_64
+            bin: macos/x86_64/openaev-implant
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v7
+
+      - name: Set up Python
+        uses: actions/setup-python@v7
+        with:
+          python-version: "3.x"
+
+      - name: Download binary artifact
+        uses: actions/download-artifact@v8
+        with:
+          name: implant-bin-${{ matrix.artifact }}
+          path: smoke
+
+      - name: Run a command payload from a mock platform
+        run: python .github/scripts/implant-smoke.py smoke/${{ matrix.bin }}
