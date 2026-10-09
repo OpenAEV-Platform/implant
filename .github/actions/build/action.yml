@@ -1,0 +1,101 @@
+name: Build
+description: "Build the release implant for one target and upload it as an artifact"
+
+inputs:
+  os:
+    description: "Runner OS family: ubuntu, windows or macos"
+    required: true
+  arch:
+    description: "Architecture: x86_64 or arm64"
+    required: true
+  target:
+    description: "Rust target triple to build"
+    required: true
+  jfrog_path:
+    description: "Artifact folder, matching the JFrog layout (e.g. linux/x86_64)"
+    required: true
+
+runs:
+  using: composite
+  steps:
+    - name: Install musl-tools
+      if: inputs.os == 'ubuntu' && contains(inputs.target, 'musl')
+      run: sudo apt-get update && sudo apt-get install -y musl-tools
+      shell: bash
+
+    - name: Set up Rust and cache
+      uses: ./.github/actions/setup-rust
+      with:
+        cache-key: build-${{ inputs.arch }}
+        targets: ${{ inputs.target }}
+
+    - name: Build (release)
+      run: |
+        # Static CRT linkage for Windows is configured in .cargo/config.toml
+        # (target-feature=+crt-static) so VCRUNTIME140.dll is not required at
+        # runtime.
+        #
+        # IMPORTANT: We must NOT set RUSTFLAGS here because it would *override*
+        # (not combine with) the target-specific rustflags in .cargo/config.toml,
+        # effectively dropping +crt-static.  This was the root cause of the
+        # VCRUNTIME140.dll missing error on Windows ARM64.
+        cargo build --target=${{ inputs.target }} --release --locked
+      shell: bash
+
+    - name: Verify no dynamic CRT dependency (Windows)
+      if: inputs.os == 'windows'
+      shell: bash
+      run: |
+        BIN="./target/${{ inputs.target }}/release/openaev-implant.exe"
+        echo "Checking $BIN for VCRUNTIME imports…"
+        # rustup includes llvm-objdump; use it instead of dumpbin which
+        # may not be on PATH (especially on windows-11-arm runners).
+        if rustup run stable llvm-objdump --private-headers "$BIN" \
+           | grep -qi "vcruntime"; then
+          echo "::error::Binary still dynamically links to VCRUNTIME:"
+          rustup run stable llvm-objdump --private-headers "$BIN" | grep -i "vcruntime"
+          exit 1
+        fi
+        echo "✅ No VCRUNTIME dependency found — static CRT linkage confirmed."
+
+    - name: Install cargo cache
+      run: |
+        if [ -x "$HOME/.cargo/bin/cargo-cache" ] || [ -x "$USERPROFILE\.cargo\bin\cargo-cache.exe" ]; then
+          echo "cargo-cache already installed."
+        else
+          cargo install cargo-cache --locked
+        fi
+      shell: bash
+
+    - name: Run cargo cache
+      run: cargo cache -a -l || true
+      shell: bash
+
+    # ──────────────────────────────────────────────────────────────
+    # Stage artifacts for downstream promotion.
+    #
+    # Layout (implant-bin-<os>-<arch>):
+    #   <jfrog_path>/openaev-implant[.exe]
+    # ──────────────────────────────────────────────────────────────
+    - name: Stage binary for upload
+      shell: bash
+      run: |
+        set -euo pipefail
+        STAGE="staging/${{ inputs.jfrog_path }}"
+        mkdir -p "$STAGE"
+
+        exe_ext=""
+        [[ "${{ inputs.os }}" == "windows" ]] && exe_ext=".exe"
+
+        cp "./target/${{ inputs.target }}/release/openaev-implant${exe_ext}" \
+           "$STAGE/openaev-implant${exe_ext}"
+
+        ls -la "$STAGE"
+
+    - name: Upload binary artifact
+      uses: actions/upload-artifact@v7
+      with:
+        name: implant-bin-${{ inputs.os }}-${{ inputs.arch }}
+        path: staging/
+        if-no-files-found: error
+        retention-days: 14
