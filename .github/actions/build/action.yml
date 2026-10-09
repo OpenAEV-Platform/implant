@@ -26,7 +26,7 @@ runs:
     - name: Set up Rust and cache
       uses: ./.github/actions/setup-rust
       with:
-        cache-key: build-${{ inputs.arch }}
+        cache-key: build
         targets: ${{ inputs.target }}
 
     - name: Build (release)
@@ -57,19 +57,6 @@ runs:
           exit 1
         fi
         echo "✅ No VCRUNTIME dependency found — static CRT linkage confirmed."
-
-    - name: Install cargo cache
-      run: |
-        if [ -x "$HOME/.cargo/bin/cargo-cache" ] || [ -x "$USERPROFILE\.cargo\bin\cargo-cache.exe" ]; then
-          echo "cargo-cache already installed."
-        else
-          cargo install cargo-cache --locked
-        fi
-      shell: bash
-
-    - name: Run cargo cache
-      run: cargo cache -a -l || true
-      shell: bash
 
     # ──────────────────────────────────────────────────────────────
     # Stage artifacts for downstream promotion.
