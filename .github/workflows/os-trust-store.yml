@@ -103,8 +103,9 @@ jobs:
 
       # SSL_CERT_FILE replaces the system store on Linux, so an empty file leaves only the
       # bundled roots: the public URL must be validated by them alone.
+      # Forks skip it so their CI does not call filigran.io.
       - name: Run the bundled roots test with an empty OS trust store (linux)
-        if: matrix.os == 'ubuntu'
+        if: matrix.os == 'ubuntu' && github.repository_owner == 'OpenAEV-Platform'
         env:
           OAEV_BUNDLED_ROOTS_URL: https://filigran.io
         run: |
