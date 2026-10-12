@@ -23,6 +23,14 @@ runs:
         name: implant-bin-${{ inputs.artifact }}
         path: smoke
 
+    # Windows keeps the runner's default shell, so the implant does not inherit
+    # Git Bash's PATH and environment.
     - name: Run a command payload from a mock platform
+      if: runner.os != 'Windows'
       run: python .github/scripts/implant-smoke.py smoke/${{ inputs.bin }}
       shell: bash
+
+    - name: Run a command payload from a mock platform (Windows)
+      if: runner.os == 'Windows'
+      run: python .github/scripts/implant-smoke.py smoke/${{ inputs.bin }}
+      shell: pwsh
