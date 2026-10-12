@@ -1,0 +1,28 @@
+name: Smoke
+description: "Run the built implant against a mock platform: each native executor must run a command and report its output"
+
+inputs:
+  artifact:
+    description: "Build artifact suffix (implant-bin-<artifact>)"
+    required: true
+  bin:
+    description: "Binary path inside the artifact"
+    required: true
+
+runs:
+  using: composite
+  steps:
+    - name: Set up Python
+      uses: actions/setup-python@v7
+      with:
+        python-version: "3.x"
+
+    - name: Download binary artifact
+      uses: actions/download-artifact@v8
+      with:
+        name: implant-bin-${{ inputs.artifact }}
+        path: smoke
+
+    - name: Run a command payload from a mock platform
+      run: python .github/scripts/implant-smoke.py smoke/${{ inputs.bin }}
+      shell: bash

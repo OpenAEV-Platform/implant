@@ -1,0 +1,29 @@
+name: Clippy
+description: "Lint the implant with clippy for one target"
+
+inputs:
+  os:
+    description: "Runner OS family: ubuntu, windows or macos"
+    required: true
+  target:
+    description: "Rust target triple to lint"
+    required: true
+
+runs:
+  using: composite
+  steps:
+    - name: Install musl-tools
+      if: inputs.os == 'ubuntu'
+      run: sudo apt-get update && sudo apt-get install -y musl-tools
+      shell: bash
+
+    - name: Set up Rust and cache
+      uses: ./.github/actions/setup-rust
+      with:
+        cache-key: clippy
+        targets: ${{ inputs.target }}
+        components: clippy
+
+    - name: Run cargo clippy
+      run: cargo clippy --target=${{ inputs.target }} -- -D warnings
+      shell: bash
