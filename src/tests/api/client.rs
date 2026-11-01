@@ -4,8 +4,26 @@ pub const TOKEN_TEST: &str = "token";
 mod tests {
     use crate::api::{Client, AUTHORIZATION_HEADER};
     use crate::tests::api::client::TOKEN_TEST;
+    use crate::tests::api::tls_server::serve_self_signed_https;
     use mockito;
     use std::env;
+    use std::error::Error;
+    use std::io;
+
+    fn is_invalid_certificate(err: &reqwest::Error) -> bool {
+        let mut current: Option<&(dyn Error + 'static)> = Some(err);
+        while let Some(e) = current {
+            if let Some(rustls::Error::InvalidCertificate(_)) = e.downcast_ref::<rustls::Error>() {
+                return true;
+            }
+            // io::Error::source() skips the error it wraps, so step into it explicitly
+            current = match e.downcast_ref::<io::Error>().and_then(io::Error::get_ref) {
+                Some(inner) => Some(inner),
+                None => e.source(),
+            };
+        }
+        false
+    }
 
     #[test]
     fn test_client_headers() {
@@ -62,16 +80,11 @@ mod tests {
     #[test]
     fn test_unsecured_certificate_acceptance() {
         // -- PREPARE --
-        let bad_ssl_url = "https://self-signed.badssl.com/";
-
-        let client_without_unsecured_certificate = Client::new(
-            bad_ssl_url.to_string(),
-            TOKEN_TEST.to_string(),
-            false,
-            false,
-        );
+        let url = serve_self_signed_https();
+        let client_without_unsecured_certificate =
+            Client::new(url.clone(), TOKEN_TEST.to_string(), false, false);
         let client_with_unsecured_certificate =
-            Client::new(bad_ssl_url.to_string(), TOKEN_TEST.to_string(), true, true);
+            Client::new(url, TOKEN_TEST.to_string(), true, false);
 
         // -- EXECUTE --
         let res_without_unsecured_certificate = client_without_unsecured_certificate.get("").send();
@@ -79,19 +92,51 @@ mod tests {
 
         // -- ASSERT --
         assert!(
-            res_without_unsecured_certificate.is_err(),
-            "Client should not bypass the bad ssl"
+            res_without_unsecured_certificate
+                .as_ref()
+                .is_err_and(is_invalid_certificate),
+            "Client should reject the self-signed certificate: {:?}",
+            res_without_unsecured_certificate
         );
-
-        // If network/DNS is unavailable, this external integration call can fail for reasons
-        // unrelated to certificate validation; in that case we skip the success assertion.
-        if res_with_unsecured_certificate.is_err() {
-            return;
-        }
-
         assert!(
             res_with_unsecured_certificate.is_ok(),
-            "Client should bypass the bad ssl"
+            "Client should bypass the bad ssl when unsecured: {:?}",
+            res_with_unsecured_certificate.err()
+        );
+    }
+
+    #[test]
+    #[ignore = "requires the os-trust-store CI job"]
+    fn test_bundled_roots_are_trusted() {
+        // -- PREPARE --
+        // the CI job empties the OS trust store, so only the bundled roots can validate this URL
+        let url = env::var("OAEV_BUNDLED_ROOTS_URL")
+            .expect("OAEV_BUNDLED_ROOTS_URL must be set by the os-trust-store CI job");
+        let client = Client::new(url, TOKEN_TEST.to_string(), false, false);
+
+        // -- EXECUTE --
+        let res = client.get("").send();
+
+        // -- ASSERT --
+        assert!(
+            res.is_ok(),
+            "Client should trust a public certificate through its bundled roots: {:?}",
+            res.err()
+        );
+    }
+
+    #[test]
+    #[ignore = "requires the os-trust-store CI job"]
+    fn test_os_trust_store_is_consulted() {
+        // -- PREPARE --
+        let url = env::var("OAEV_OS_TRUST_URL")
+            .expect("OAEV_OS_TRUST_URL must be set by the os-trust-store CI job");
+        let client = Client::new(url, TOKEN_TEST.to_string(), false, false);
+
+        // -- EXECUTE & ASSERT --
+        assert!(
+            client.get("").send().is_ok(),
+            "Client should trust a CA present only in the OS trust store"
         );
     }
 }
