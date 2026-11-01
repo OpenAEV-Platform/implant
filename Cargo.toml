@@ -1,23 +1,22 @@
 [package]
 name = "openaev-implant"
-version = "2.260717.0"
+version = "3.261029.0"
 edition = "2021"
 
 [dependencies]
-base64 = "0.22.1"
+base64 = "0.23.0"
 tracing-appender = "0.2.4"
 rolling-file = "0.2.0"
-mailparse = "0.16.0"
+webpki-root-certs = "1.0.10"
+mailparse = "0.18.0"
 percent-encoding = "2.3.2"
 rustls-webpki = ">0.103.12"
-zip = { version = "2.2.0", default-features = false, features = ["aes-crypto", "deflate"] }
 
 [dependencies.reqwest]
-version = "0.12.28"
+version = "0.13.0"
 features = [
     "blocking",
-    "rustls-tls",
-    "rustls-tls-native-roots",
+    "rustls",
     "json",
 ]
 default-features = false
@@ -51,3 +50,11 @@ features = [
 
 [dev-dependencies]
 mockito = "1.7.0"
+rustls = "0.23.45"
+
+[dev-dependencies.rcgen]
+version = "0.14.10"
+features = [
+    "aws_lc_rs",
+]
+default-features = false

@@ -56,9 +56,6 @@ pub struct InjectorContractPayload {
     pub executable_file: Option<String>,
     // DnsResolution
     pub dns_resolution_hostname: Option<String>,
-    // Clear zip password for an encrypted malware sample; when present the downloaded file is a
-    // password-protected zip that must be decrypted in memory before it is dropped/executed.
-    pub payload_sample_zip_password: Option<String>,
     // Prerequisites
     pub payload_prerequisites: Option<Vec<PayloadPrerequisite>>,
     // Command
@@ -177,36 +174,39 @@ impl Client {
         }
     }
 
+    /// Downloads a document (dropped file / executable payload) as the service-account (implant)
+    /// token.
+    ///
+    /// TEMPORARY (#294): this uses the dedicated `.../agent-file` route, scoped server-side via
+    /// `AGENT_DOCUMENT_ACCESS` / `AGENT_DOCUMENT_READ`, so the service-account token never needs
+    /// the `SEARCH` capability (platform-wide document listing). This is DISTINCT from the human
+    /// route `.../documents/{document_id}/file`, which stays reserved for human users via
+    /// `ACCESS_DOCUMENTS` / `READ`. Revert to `/file` once #294's durable per-document scoping
+    /// lands on the server.
+    ///
+    /// ⚠️ RELEASE SYNC: the `agent-file` segment must match the server. The implant binary is
+    /// published to JFrog (`openaev-implant`) and pinned into an OpenAEV release at build time by
+    /// `core-engine/scripts/download-binaries.sh` (bundled under
+    /// `openaev-api/src/main/resources/implants/` and served by `InjectorApi.downloadImplant`).
+    /// This change MUST ship in the SAME OpenAEV release as the server route change: a pre-change
+    /// implant against a post-change server (or the reverse) would 404 every in-flight inject file
+    /// download. When cutting the release, ensure the implant version pinned by
+    /// `download-binaries.sh` is a build that contains this commit.
     pub fn download_file(
         &self,
         document_id: &String,
         tenant_id: String,
         in_memory: bool,
     ) -> Result<String, Error> {
-        self.download_file_maybe_encrypted(document_id, tenant_id, in_memory, &None)
-    }
-
-    /// Download a file by id. When `sample_zip_password` is set, the downloaded object is a
-    /// password-protected zip (a malware sample): it is buffered and decrypted in memory, and the
-    /// single contained entry is written out as the working file, just before detonation.
-    pub fn download_file_maybe_encrypted(
-        &self,
-        document_id: &String,
-        tenant_id: String,
-        in_memory: bool,
-        sample_zip_password: &Option<String>,
-    ) -> Result<String, Error> {
         match self
             .get(&format!(
-                "/api/tenants/{tenant_id}/files/{document_id}/file"
+                // TEMPORARY (#294): service-account route, distinct from the human `/file` route.
+                "/api/tenants/{tenant_id}/documents/{document_id}/agent-file"
             ))
             .send()
         {
             Ok(response) => {
                 if response.status().is_success() {
-                    if let Some(password) = sample_zip_password {
-                        return decrypt_sample_to_disk(response, password);
-                    }
                     let name = extract_filename(&response)?;
                     let decoded_name = decode_filename(&name)?;
                     let output_path = get_output_path(&decoded_name)?;
@@ -233,46 +233,6 @@ impl Client {
                 }
             }
             Err(err) => Err(Error::Internal(err.to_string())),
-        }
-    }
-}
-
-/// Read the encrypted-zip response fully, decrypt its single entry with the given password, and
-/// write the plaintext sample to the working payloads directory. Returns the extracted file name.
-fn decrypt_sample_to_disk(response: Response, password: &str) -> Result<String, Error> {
-    let bytes = response
-        .bytes()
-        .map_err(|e| Error::Internal(e.to_string()))?
-        .to_vec();
-    let reader = std::io::Cursor::new(bytes);
-    let mut archive = zip::ZipArchive::new(reader).map_err(|e| Error::Internal(e.to_string()))?;
-    // The Files feature ships one sample per encrypted zip; reject anything else so we never
-    // silently detonate the wrong entry.
-    if archive.len() != 1 {
-        return Err(Error::Internal(format!(
-            "Encrypted sample archive must contain exactly one entry, found {}",
-            archive.len()
-        )));
-    }
-    let mut entry = archive
-        .by_index_decrypt(0, password.as_bytes())
-        .map_err(|e| Error::Internal(e.to_string()))?;
-    if entry.is_dir() {
-        return Err(Error::Internal(
-            "Encrypted sample archive entry is a directory, expected a file".to_string(),
-        ));
-    }
-    let entry_name = entry
-        .enclosed_name()
-        .and_then(|p| p.file_name().map(|n| n.to_string_lossy().to_string()))
-        .unwrap_or_else(|| "sample".to_string());
-    let output_path = get_output_path(&entry_name)?;
-    let mut output_file = File::create(output_path.clone())?;
-    match io::copy(&mut entry, &mut output_file) {
-        Ok(_) => Ok(entry_name),
-        Err(err) => {
-            let _ = fs::remove_file(output_path);
-            Err(Error::Io(err))
         }
     }
 }
