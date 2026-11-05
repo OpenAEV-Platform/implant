@@ -4,7 +4,7 @@ mod tests {
     use crate::process::file_exec::get_output_path;
     use mockito;
     use std::fs::create_dir_all;
-    use std::io::Read;
+    use std::io::{Read, Write};
     use std::{env, fs};
 
     #[test]
@@ -102,6 +102,122 @@ mod tests {
 
         // -- CLEAN --
         fs::remove_file(expected_file_path).unwrap();
+    }
+
+    #[test]
+    fn test_download_encrypted_sample_to_disk_success() {
+        // Resolve the payloads path and create it on the fly
+        let current_exe_path = env::current_exe().unwrap();
+        let parent_path = current_exe_path.parent().unwrap();
+        let folder_name = parent_path.file_name().unwrap().to_str().unwrap();
+        let payloads_path = parent_path
+            .parent()
+            .unwrap()
+            .parent()
+            .unwrap()
+            .join("payloads")
+            .join(folder_name);
+        create_dir_all(&payloads_path).expect("Cannot create payloads directory");
+
+        // Build a password-protected (AES-256) zip holding a single sample entry, in memory,
+        // mirroring what the OpenAEV Files feature serves for an encrypted malware sample.
+        let sample_name = "decrypted-sample.txt";
+        let sample_content = "Hello, encrypted OpenAEV!";
+        let password = "s3cr3t-p4ss";
+        let mut zip_buffer = std::io::Cursor::new(Vec::new());
+        {
+            let mut zip = zip::ZipWriter::new(&mut zip_buffer);
+            let options = zip::write::SimpleFileOptions::default()
+                .compression_method(zip::CompressionMethod::Deflated)
+                .with_aes_encryption(zip::AesMode::Aes256, password);
+            zip.start_file(sample_name, options).unwrap();
+            zip.write_all(sample_content.as_bytes()).unwrap();
+            zip.finish().unwrap();
+        }
+        let zip_bytes = zip_buffer.into_inner();
+
+        let mut server = mockito::Server::new();
+        let server_url = server.url();
+
+        let _m = server
+            .mock("GET", "/api/tenants/test-tenant/documents/123/agent-file")
+            .with_status(200)
+            .with_body(zip_bytes)
+            .create();
+
+        let client = crate::api::Client::new(
+            server_url,
+            crate::tests::api::client::TOKEN_TEST.to_string(),
+            false,
+            false,
+        );
+
+        // -- EXECUTE --
+        let result = client.download_file_maybe_encrypted(
+            &"123".to_string(),
+            "test-tenant".to_string(),
+            false,
+            &Some(password.to_string()),
+        );
+
+        // -- ASSERT --
+        assert!(result.is_ok());
+        assert_eq!(result.as_ref().unwrap(), sample_name);
+
+        let expected_file_path = payloads_path.join(sample_name);
+        assert!(expected_file_path.exists());
+
+        let mut content = String::new();
+        let mut file = fs::File::open(&expected_file_path).unwrap();
+        file.read_to_string(&mut content).unwrap();
+        assert_eq!(content, sample_content);
+
+        // -- CLEAN --
+        fs::remove_file(expected_file_path).unwrap();
+    }
+
+    #[test]
+    fn test_download_encrypted_sample_rejects_unsafe_entry_name() {
+        // An entry whose name escapes the extraction directory must be rejected, never written
+        // under a default name.
+        let password = "s3cr3t-p4ss";
+        let mut zip_buffer = std::io::Cursor::new(Vec::new());
+        {
+            let mut zip = zip::ZipWriter::new(&mut zip_buffer);
+            let options = zip::write::SimpleFileOptions::default()
+                .compression_method(zip::CompressionMethod::Deflated)
+                .with_aes_encryption(zip::AesMode::Aes256, password);
+            zip.start_file("../escaped-sample.txt", options).unwrap();
+            zip.write_all(b"should never be written").unwrap();
+            zip.finish().unwrap();
+        }
+        let zip_bytes = zip_buffer.into_inner();
+
+        let mut server = mockito::Server::new();
+        let server_url = server.url();
+        let _m = server
+            .mock("GET", "/api/tenants/test-tenant/documents/123/agent-file")
+            .with_status(200)
+            .with_body(zip_bytes)
+            .create();
+
+        let client = crate::api::Client::new(
+            server_url,
+            crate::tests::api::client::TOKEN_TEST.to_string(),
+            false,
+            false,
+        );
+
+        // -- EXECUTE --
+        let result = client.download_file_maybe_encrypted(
+            &"123".to_string(),
+            "test-tenant".to_string(),
+            false,
+            &Some(password.to_string()),
+        );
+
+        // -- ASSERT --
+        assert!(result.is_err());
     }
 
     #[test]
