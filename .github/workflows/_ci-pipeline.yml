@@ -20,7 +20,7 @@ jobs:
   # ──────────────────────────────────────────────────────────────────
   quality:
     name: "🔍 Quality gates (fmt + audit)"
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 20
     steps:
       - name: Checkout code
@@ -43,7 +43,7 @@ jobs:
       matrix:
         include:
           - os: ubuntu
-            runner: ubuntu-latest
+            runner: ubuntu-24.04
             target: x86_64-unknown-linux-musl
           - os: windows
             runner: windows-latest
@@ -75,7 +75,7 @@ jobs:
         include:
           - os: ubuntu
             arch: x86_64
-            runner: ubuntu-latest
+            runner: ubuntu-24.04
             target: x86_64-unknown-linux-musl
           - os: ubuntu
             arch: arm64
@@ -116,7 +116,7 @@ jobs:
   # ──────────────────────────────────────────────────────────────────
   coverage:
     name: "📊 Coverage"
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 30
     steps:
       - name: Checkout code
@@ -140,7 +140,7 @@ jobs:
         include:
           - os: ubuntu
             arch: x86_64
-            runner: ubuntu-latest
+            runner: ubuntu-24.04
             target: x86_64-unknown-linux-musl
             jfrog_path: linux/x86_64
           - os: ubuntu
@@ -249,7 +249,7 @@ jobs:
       matrix:
         include:
           - os: ubuntu
-            runner: ubuntu-latest
+            runner: ubuntu-24.04
           - os: windows
             runner: windows-latest
           - os: macos
@@ -279,7 +279,7 @@ jobs:
       - smoke
       - os-trust-store
     if: ${{ always() }}
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 5
     steps:
       - name: Check all upstream job results
