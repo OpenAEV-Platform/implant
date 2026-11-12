@@ -75,6 +75,7 @@ fn map_exit_code(exit_code: i32, executor: &str, stderr: &str) -> &'static str {
         },
         EXECUTOR_POWERSHELL | EXECUTOR_PWSH => match exit_code {
             1 if stderr.contains("CommandNotFoundException") => STATUS_COMMAND_NOT_FOUND,
+            1 if stderr.contains("Access is denied") => STATUS_ACCESS_DENIED,
             5 => STATUS_ACCESS_DENIED,
             126 => STATUS_COMMAND_CANNOT_BE_EXECUTED,
             127 => STATUS_COMMAND_NOT_FOUND,
