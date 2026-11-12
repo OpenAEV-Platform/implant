@@ -3,7 +3,6 @@ use crate::api::Client;
 use crate::handle::handle_file::handle_file;
 use crate::handle::handle_file_drop::handle_file_drop;
 use crate::process::file_exec::get_output_path;
-use crate::tests::api::client::TOKEN_TEST;
 use mockito::{Mock, ServerGuard};
 use serde_json::json;
 use std::fs;
@@ -12,6 +11,7 @@ const TENANT_ID: &str = "tenant";
 const AGENT_ID: &str = "agent";
 const INJECT_ID: &str = "inject";
 const DOCUMENT_ID: &str = "document";
+const TOKEN: &str = "token";
 
 fn mock_platform(server: &mut ServerGuard, filename: &str) -> Vec<Mock> {
     vec![
@@ -54,7 +54,7 @@ fn test_handle_file_keeps_downloaded_file_for_execution() {
     let path = payload_path(filename);
     let mut server = mockito::Server::new();
     let _mocks = mock_platform(&mut server, filename);
-    let client = Client::new(server.url(), TOKEN_TEST.to_string(), false, false);
+    let client = Client::new(server.url(), TOKEN.to_string(), false, false);
 
     // -- EXECUTE --
     let result = handle_file(
@@ -81,7 +81,7 @@ fn test_handle_file_drop_deletes_downloaded_file() {
     let path = payload_path(filename);
     let mut server = mockito::Server::new();
     let _mocks = mock_platform(&mut server, filename);
-    let client = Client::new(server.url(), TOKEN_TEST.to_string(), false, false);
+    let client = Client::new(server.url(), TOKEN.to_string(), false, false);
     let payload: InjectorContractPayload = serde_json::from_value(json!({
         "payload_type": "FileDrop",
         "file_drop_file": DOCUMENT_ID,
