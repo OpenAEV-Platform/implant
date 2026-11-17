@@ -1,9 +1,10 @@
 #[cfg(test)]
 mod tests {
-    use crate::process::exec_utils::decode_filename;
+    use crate::process::exec_utils::{decode_filename, sanitize_filename};
+    use crate::process::file_exec::get_output_path;
     use mockito;
     use std::fs::create_dir_all;
-    use std::io::{Read, Write};
+    use std::io::Read;
     use std::{env, fs};
 
     #[test]
@@ -104,122 +105,6 @@ mod tests {
     }
 
     #[test]
-    fn test_download_encrypted_sample_to_disk_success() {
-        // Resolve the payloads path and create it on the fly
-        let current_exe_path = env::current_exe().unwrap();
-        let parent_path = current_exe_path.parent().unwrap();
-        let folder_name = parent_path.file_name().unwrap().to_str().unwrap();
-        let payloads_path = parent_path
-            .parent()
-            .unwrap()
-            .parent()
-            .unwrap()
-            .join("payloads")
-            .join(folder_name);
-        create_dir_all(&payloads_path).expect("Cannot create payloads directory");
-
-        // Build a password-protected (AES-256) zip holding a single sample entry, in memory,
-        // mirroring what the OpenAEV Files feature serves for an encrypted malware sample.
-        let sample_name = "decrypted-sample.txt";
-        let sample_content = "Hello, encrypted OpenAEV!";
-        let password = "s3cr3t-p4ss";
-        let mut zip_buffer = std::io::Cursor::new(Vec::new());
-        {
-            let mut zip = zip::ZipWriter::new(&mut zip_buffer);
-            let options = zip::write::SimpleFileOptions::default()
-                .compression_method(zip::CompressionMethod::Deflated)
-                .with_aes_encryption(zip::AesMode::Aes256, password);
-            zip.start_file(sample_name, options).unwrap();
-            zip.write_all(sample_content.as_bytes()).unwrap();
-            zip.finish().unwrap();
-        }
-        let zip_bytes = zip_buffer.into_inner();
-
-        let mut server = mockito::Server::new();
-        let server_url = server.url();
-
-        let _m = server
-            .mock("GET", "/api/tenants/test-tenant/documents/123/agent-file")
-            .with_status(200)
-            .with_body(zip_bytes)
-            .create();
-
-        let client = crate::api::Client::new(
-            server_url,
-            crate::tests::api::client::TOKEN_TEST.to_string(),
-            false,
-            false,
-        );
-
-        // -- EXECUTE --
-        let result = client.download_file_maybe_encrypted(
-            &"123".to_string(),
-            "test-tenant".to_string(),
-            false,
-            &Some(password.to_string()),
-        );
-
-        // -- ASSERT --
-        assert!(result.is_ok());
-        assert_eq!(result.as_ref().unwrap(), sample_name);
-
-        let expected_file_path = payloads_path.join(sample_name);
-        assert!(expected_file_path.exists());
-
-        let mut content = String::new();
-        let mut file = fs::File::open(&expected_file_path).unwrap();
-        file.read_to_string(&mut content).unwrap();
-        assert_eq!(content, sample_content);
-
-        // -- CLEAN --
-        fs::remove_file(expected_file_path).unwrap();
-    }
-
-    #[test]
-    fn test_download_encrypted_sample_rejects_unsafe_entry_name() {
-        // An entry whose name escapes the extraction directory must be rejected, never written
-        // under a default name.
-        let password = "s3cr3t-p4ss";
-        let mut zip_buffer = std::io::Cursor::new(Vec::new());
-        {
-            let mut zip = zip::ZipWriter::new(&mut zip_buffer);
-            let options = zip::write::SimpleFileOptions::default()
-                .compression_method(zip::CompressionMethod::Deflated)
-                .with_aes_encryption(zip::AesMode::Aes256, password);
-            zip.start_file("../escaped-sample.txt", options).unwrap();
-            zip.write_all(b"should never be written").unwrap();
-            zip.finish().unwrap();
-        }
-        let zip_bytes = zip_buffer.into_inner();
-
-        let mut server = mockito::Server::new();
-        let server_url = server.url();
-        let _m = server
-            .mock("GET", "/api/tenants/test-tenant/documents/123/agent-file")
-            .with_status(200)
-            .with_body(zip_bytes)
-            .create();
-
-        let client = crate::api::Client::new(
-            server_url,
-            crate::tests::api::client::TOKEN_TEST.to_string(),
-            false,
-            false,
-        );
-
-        // -- EXECUTE --
-        let result = client.download_file_maybe_encrypted(
-            &"123".to_string(),
-            "test-tenant".to_string(),
-            false,
-            &Some(password.to_string()),
-        );
-
-        // -- ASSERT --
-        assert!(result.is_err());
-    }
-
-    #[test]
     fn test_decode_file_name() {
         let names: Vec<(String, String)> = vec![
             (
@@ -291,5 +176,132 @@ mod tests {
         let input = "%FF%20file.txt";
         let result = decode_filename(input);
         assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_sanitize_filename_accepts_plain_names() {
+        for name in [
+            "test.txt",
+            "rapport final.pdf",
+            "résumé📄.docx",
+            "archive-2025!.zip",
+            "..dotfile.txt",
+            "file..name.bin",
+        ] {
+            assert_eq!(sanitize_filename(name).unwrap(), name);
+        }
+    }
+
+    #[test]
+    fn test_sanitize_filename_rejects_traversal() {
+        for name in [
+            "",
+            "..",
+            ".",
+            "../x.txt",
+            "../../traversal_plain.txt",
+            "..\\..\\traversal_windows.txt",
+            "a/b.txt",
+            "a\\b.txt",
+            "/etc/passwd",
+            "C:\\windows\\system32\\evil.dll",
+            "with\0nul.txt",
+        ] {
+            assert!(
+                sanitize_filename(name).is_err(),
+                "expected {name:?} to be rejected"
+            );
+        }
+    }
+
+    // Write, delete and execution paths all resolve through get_output_path.
+    #[test]
+    fn test_get_output_path_stays_in_payloads_directory() {
+        let path = get_output_path("payload.sh").unwrap();
+        assert_eq!(path.file_name().unwrap(), "payload.sh");
+        assert_eq!(
+            path.parent()
+                .unwrap()
+                .parent()
+                .unwrap()
+                .file_name()
+                .unwrap(),
+            "payloads"
+        );
+
+        for name in ["..", "../x.sh", "..%2Fx.sh", "/etc/cron.d/x", "a\\b.sh"] {
+            let name = decode_filename(name).unwrap();
+            assert!(
+                get_output_path(&name).is_err(),
+                "expected {name:?} to be rejected"
+            );
+        }
+    }
+
+    // A C2 server returning a plain traversal filename in Content-Disposition
+    // must not cause a write outside the payloads directory.
+    #[test]
+    fn test_download_file_rejects_path_traversal() {
+        let mut server = mockito::Server::new();
+        let server_url = server.url();
+
+        let content_disposition = "attachment; filename=\"../../traversal_plain.txt\"";
+        let _m = server
+            .mock("GET", "/api/tenants/test-tenant/documents/123/agent-file")
+            .with_status(200)
+            .with_header("content-disposition", content_disposition)
+            .with_body("owned")
+            .create();
+
+        let client = crate::api::Client::new(
+            server_url,
+            crate::tests::api::client::TOKEN_TEST.to_string(),
+            false,
+            false,
+        );
+
+        let result = client.download_file(&"123".to_string(), "test-tenant".to_string(), false);
+
+        assert!(result.is_err(), "traversal filename must be rejected");
+        assert!(!escaped_target("traversal_plain.txt").exists());
+    }
+
+    // The percent-encoded traversal variant resolves to the same path once
+    // decoded and must be rejected just the same.
+    #[test]
+    fn test_download_file_rejects_encoded_path_traversal() {
+        let mut server = mockito::Server::new();
+        let server_url = server.url();
+
+        let content_disposition = "attachment; filename=\"..%2F..%2Ftraversal_encoded.txt\"";
+        let _m = server
+            .mock("GET", "/api/tenants/test-tenant/documents/123/agent-file")
+            .with_status(200)
+            .with_header("content-disposition", content_disposition)
+            .with_body("owned")
+            .create();
+
+        let client = crate::api::Client::new(
+            server_url,
+            crate::tests::api::client::TOKEN_TEST.to_string(),
+            false,
+            false,
+        );
+
+        let result = client.download_file(&"123".to_string(), "test-tenant".to_string(), false);
+
+        assert!(
+            result.is_err(),
+            "percent-encoded traversal filename must be rejected"
+        );
+        assert!(!escaped_target("traversal_encoded.txt").exists());
+    }
+
+    // Path the traversal payloads would land on if `..` were honoured, i.e. two
+    // levels above the payloads directory root.
+    fn escaped_target(name: &str) -> std::path::PathBuf {
+        let current_exe_path = env::current_exe().unwrap();
+        let parent_path = current_exe_path.parent().unwrap();
+        parent_path.parent().unwrap().parent().unwrap().join(name)
     }
 }

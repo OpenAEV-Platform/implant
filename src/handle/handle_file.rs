@@ -7,7 +7,7 @@ use crate::api::Client;
 use crate::common::error_model::Error;
 use crate::handle::handle_execution::handle_execution_result;
 use crate::handle::ExecutionParam;
-use crate::process::file_exec::{delete_file, file_execution};
+use crate::process::file_exec::file_execution;
 
 pub fn handle_execution_file(
     semantic: &str,
@@ -43,7 +43,6 @@ pub fn handle_file(
     api: &Client,
     file_target: &Option<String>,
     in_memory: bool,
-    sample_zip_password: &Option<String>,
 ) -> Result<String, Error> {
     match file_target {
         None => {
@@ -65,12 +64,7 @@ pub fn handle_file(
         }
         Some(document_id) => {
             let now = Instant::now();
-            let download = api.download_file_maybe_encrypted(
-                document_id,
-                tenant_id.clone(),
-                in_memory,
-                sample_zip_password,
-            );
+            let download = api.download_file(document_id, tenant_id.clone(), in_memory);
             let elapsed = now.elapsed().as_millis();
             match download {
                 Ok(filename) => {
@@ -88,7 +82,6 @@ pub fn handle_file(
                         None,
                         elapsed,
                     );
-                    delete_file(&filename)?;
                     Ok(filename)
                 }
                 Err(err) => {
