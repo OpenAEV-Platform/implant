@@ -27,10 +27,14 @@ runs:
     # Git Bash's PATH and environment.
     - name: Run a command payload from a mock platform
       if: runner.os != 'Windows'
-      run: python .github/scripts/implant-smoke.py smoke/${{ inputs.bin }}
+      env:
+        BIN: smoke/${{ inputs.bin }}
+      run: python .github/scripts/implant-smoke.py "$BIN"
       shell: bash
 
     - name: Run a command payload from a mock platform (Windows)
       if: runner.os == 'Windows'
-      run: python .github/scripts/implant-smoke.py smoke/${{ inputs.bin }}
+      env:
+        BIN: smoke/${{ inputs.bin }}
+      run: python .github/scripts/implant-smoke.py $env:BIN
       shell: pwsh

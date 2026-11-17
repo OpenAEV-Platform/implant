@@ -30,6 +30,8 @@ runs:
         targets: ${{ inputs.target }}
 
     - name: Build (release)
+      env:
+        RUST_TARGET: ${{ inputs.target }}
       run: |
         # Static CRT linkage for Windows is configured in .cargo/config.toml
         # (target-feature=+crt-static) so VCRUNTIME140.dll is not required at
@@ -39,14 +41,16 @@ runs:
         # (not combine with) the target-specific rustflags in .cargo/config.toml,
         # effectively dropping +crt-static.  This was the root cause of the
         # VCRUNTIME140.dll missing error on Windows ARM64.
-        cargo build --target=${{ inputs.target }} --release --locked
+        cargo build --target="$RUST_TARGET" --release --locked
       shell: bash
 
     - name: Verify no dynamic CRT dependency (Windows)
       if: inputs.os == 'windows'
       shell: bash
+      env:
+        RUST_TARGET: ${{ inputs.target }}
       run: |
-        BIN="./target/${{ inputs.target }}/release/openaev-implant.exe"
+        BIN="./target/$RUST_TARGET/release/openaev-implant.exe"
         echo "Checking $BIN for VCRUNTIME imports…"
         # rustup includes llvm-objdump; use it instead of dumpbin which
         # may not be on PATH (especially on windows-11-arm runners).
@@ -66,15 +70,19 @@ runs:
     # ──────────────────────────────────────────────────────────────
     - name: Stage binary for upload
       shell: bash
+      env:
+        OS_FAMILY: ${{ inputs.os }}
+        RUST_TARGET: ${{ inputs.target }}
+        JFROG_PATH: ${{ inputs.jfrog_path }}
       run: |
         set -euo pipefail
-        STAGE="staging/${{ inputs.jfrog_path }}"
+        STAGE="staging/$JFROG_PATH"
         mkdir -p "$STAGE"
 
         exe_ext=""
-        [[ "${{ inputs.os }}" == "windows" ]] && exe_ext=".exe"
+        [[ "$OS_FAMILY" == "windows" ]] && exe_ext=".exe"
 
-        cp "./target/${{ inputs.target }}/release/openaev-implant${exe_ext}" \
+        cp "./target/$RUST_TARGET/release/openaev-implant${exe_ext}" \
            "$STAGE/openaev-implant${exe_ext}"
 
         ls -la "$STAGE"
