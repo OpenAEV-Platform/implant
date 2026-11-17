@@ -64,6 +64,7 @@ fn test_handle_file_keeps_downloaded_file_for_execution() {
         &client,
         &Some(DOCUMENT_ID.to_string()),
         false,
+        &None,
     );
 
     // -- ASSERT --
