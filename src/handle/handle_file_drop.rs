@@ -10,8 +10,20 @@ pub fn handle_file_drop(
     api: &Client,
     contract_payload: &InjectorContractPayload,
 ) {
-    let InjectorContractPayload { file_drop_file, .. } = contract_payload;
-    if let Ok(filename) = handle_file(inject_id, agent_id, tenant_id, api, file_drop_file, false) {
+    let InjectorContractPayload {
+        file_drop_file,
+        payload_sample_zip_password,
+        ..
+    } = contract_payload;
+    if let Ok(filename) = handle_file(
+        inject_id,
+        agent_id,
+        tenant_id,
+        api,
+        file_drop_file,
+        false,
+        payload_sample_zip_password,
+    ) {
         let _ = delete_file(&filename);
     }
 }
