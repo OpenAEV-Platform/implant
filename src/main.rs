@@ -104,7 +104,7 @@ pub fn handle_payload(
     tenant_id: String,
     api: &Client,
     contract_payload: &InjectorContractPayload,
-    duration: Instant,
+    started_at: Instant,
     max_size: usize,
 ) {
     let mut prerequisites_code = 0;
@@ -146,6 +146,7 @@ pub fn handle_payload(
                     agent_id: agent_id.clone(),
                     tenant_id: tenant_id.clone(),
                     max_size,
+                    started_at,
                 },
                 api,
                 &check_prerequisites,
@@ -163,6 +164,7 @@ pub fn handle_payload(
                     agent_id: agent_id.clone(),
                     tenant_id: tenant_id.clone(),
                     max_size,
+                    started_at,
                 },
                 api,
                 &install_prerequisites,
@@ -181,6 +183,7 @@ pub fn handle_payload(
                 inject_id.clone(),
                 agent_id.clone(),
                 tenant_id.clone(),
+                started_at,
                 api,
                 contract_payload,
                 max_size,
@@ -196,6 +199,7 @@ pub fn handle_payload(
                 inject_id.clone(),
                 agent_id.clone(),
                 tenant_id.clone(),
+                started_at,
                 api,
                 contract_payload,
                 max_size,
@@ -204,6 +208,7 @@ pub fn handle_payload(
                 inject_id.clone(),
                 agent_id.clone(),
                 tenant_id.clone(),
+                started_at,
                 api,
                 contract_payload,
             ),
@@ -216,7 +221,7 @@ pub fn handle_payload(
                     UpdateInput {
                         execution_message: String::from("Payload execution type not supported."),
                         execution_status: String::from(STATUS_ERROR),
-                        execution_duration: duration.elapsed().as_millis(),
+                        execution_duration: started_at.elapsed().as_millis(),
                         execution_action: String::from("command_execution"),
                     },
                 );
@@ -238,6 +243,7 @@ pub fn handle_payload(
                     agent_id: agent_id.clone(),
                     tenant_id: tenant_id.clone(),
                     max_size,
+                    started_at,
                 },
                 api,
                 &executable_cleanup,
@@ -254,7 +260,7 @@ pub fn handle_payload(
         UpdateInput {
             execution_message: String::from("Payload completed"),
             execution_status: String::from(STATUS_INFO),
-            execution_duration: duration.elapsed().as_millis(),
+            execution_duration: started_at.elapsed().as_millis(),
             execution_action: String::from("complete"),
         },
     );
@@ -262,7 +268,7 @@ pub fn handle_payload(
 
 fn main() -> Result<(), Error> {
     set_error_hook();
-    let duration = Instant::now();
+    let started_at = Instant::now();
     let current_exe_path = env::current_exe().unwrap();
     let parent_path = current_exe_path.parent().unwrap();
     let _logger_file = common::logger::init_logger(parent_path);
@@ -300,7 +306,7 @@ fn main() -> Result<(), Error> {
         args.tenant_id.clone(),
         &api,
         &contract_payload,
-        duration,
+        started_at,
         args.max_size.unwrap(),
     );
     // endregion

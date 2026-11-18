@@ -13,7 +13,6 @@ pub fn handle_execution_result(
     params: &ExecutionParam,
     api: &Client,
     command_result: Result<ExecutionResult, Error>,
-    elapsed: u128,
 ) -> i32 {
     match command_result {
         Ok(res) => {
@@ -57,7 +56,7 @@ pub fn handle_execution_result(
                     UpdateInput {
                         execution_message: info_message,
                         execution_status: String::from(STATUS_ERROR),
-                        execution_duration: elapsed,
+                        execution_duration: params.elapsed(),
                         execution_action: String::from(params.semantic.as_str()),
                     },
                 );
@@ -72,7 +71,7 @@ pub fn handle_execution_result(
                     UpdateInput {
                         execution_message,
                         execution_status: res.status,
-                        execution_duration: elapsed,
+                        execution_duration: params.elapsed(),
                         execution_action: params.semantic.clone(),
                     },
                 );
@@ -97,7 +96,7 @@ pub fn handle_execution_result(
                 UpdateInput {
                     execution_message,
                     execution_status: String::from(STATUS_ERROR),
-                    execution_duration: elapsed,
+                    execution_duration: params.elapsed(),
                     execution_action: params.semantic.clone(),
                 },
             );

@@ -36,17 +36,16 @@ pub fn handle_execution_command(
     executor: &str,
     pre_check: bool,
 ) -> i32 {
-    let now = Instant::now();
     info!("{} execution: {command:?}", params.semantic);
     let command_result = command_execution(command, executor, pre_check);
-    let elapsed = now.elapsed().as_millis();
-    handle_execution_result(params, api, command_result, elapsed)
+    handle_execution_result(params, api, command_result)
 }
 
 pub fn handle_command(
     inject_id: String,
     agent_id: String,
     tenant_id: String,
+    started_at: Instant,
     api: &Client,
     contract_payload: &InjectorContractPayload,
     max_size: usize,
@@ -60,6 +59,7 @@ pub fn handle_command(
             agent_id: agent_id.clone(),
             tenant_id: tenant_id.clone(),
             max_size,
+            started_at,
         },
         api,
         &command,

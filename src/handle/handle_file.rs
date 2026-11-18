@@ -9,37 +9,17 @@ use crate::handle::handle_execution::handle_execution_result;
 use crate::handle::ExecutionParam;
 use crate::process::file_exec::file_execution;
 
-pub fn handle_execution_file(
-    semantic: &str,
-    api: &Client,
-    inject_id: String,
-    agent_id: String,
-    tenant_id: String,
-    filename: &String,
-    max_size: usize,
-) -> i32 {
-    let now = Instant::now();
-    info!("{semantic} execution: {filename:?}");
+pub fn handle_execution_file(params: &ExecutionParam, api: &Client, filename: &String) -> i32 {
+    info!("{} execution: {filename:?}", params.semantic);
     let command_result = file_execution(filename.as_str());
-    let elapsed = now.elapsed().as_millis();
-    handle_execution_result(
-        &ExecutionParam {
-            semantic: semantic.to_owned(),
-            inject_id,
-            agent_id,
-            tenant_id,
-            max_size,
-        },
-        api,
-        command_result,
-        elapsed,
-    )
+    handle_execution_result(params, api, command_result)
 }
 
 pub fn handle_file(
     inject_id: String,
     agent_id: String,
     tenant_id: String,
+    started_at: Instant,
     api: &Client,
     file_target: &Option<String>,
     in_memory: bool,
@@ -55,17 +35,15 @@ pub fn handle_file(
                     agent_id: agent_id.clone(),
                     tenant_id: tenant_id.clone(),
                     max_size: 0,
+                    started_at,
                 },
                 None,
                 stderr.clone(),
-                0,
             );
             Err(Error::Internal(stderr))
         }
         Some(document_id) => {
-            let now = Instant::now();
             let download = api.download_file(document_id, tenant_id.clone(), in_memory);
-            let elapsed = now.elapsed().as_millis();
             match download {
                 Ok(filename) => {
                     let stdout = String::from("File downloaded with success");
@@ -77,10 +55,10 @@ pub fn handle_file(
                             agent_id: agent_id.clone(),
                             tenant_id: tenant_id.clone(),
                             max_size: 0,
+                            started_at,
                         },
                         stdout,
                         None,
-                        elapsed,
                     );
                     Ok(filename)
                 }
@@ -94,10 +72,10 @@ pub fn handle_file(
                             agent_id: agent_id.clone(),
                             tenant_id: tenant_id.clone(),
                             max_size: 0,
+                            started_at,
                         },
                         None,
                         stderr,
-                        elapsed,
                     );
                     Err(err)
                 }

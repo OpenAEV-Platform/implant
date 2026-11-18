@@ -6,6 +6,7 @@ use crate::process::file_exec::get_output_path;
 use mockito::{Mock, ServerGuard};
 use serde_json::json;
 use std::fs;
+use std::time::Instant;
 
 const TENANT_ID: &str = "tenant";
 const AGENT_ID: &str = "agent";
@@ -61,6 +62,7 @@ fn test_handle_file_keeps_downloaded_file_for_execution() {
         INJECT_ID.to_string(),
         AGENT_ID.to_string(),
         TENANT_ID.to_string(),
+        Instant::now(),
         &client,
         &Some(DOCUMENT_ID.to_string()),
         false,
@@ -93,6 +95,7 @@ fn test_handle_file_drop_deletes_downloaded_file() {
         INJECT_ID.to_string(),
         AGENT_ID.to_string(),
         TENANT_ID.to_string(),
+        Instant::now(),
         &client,
         &payload,
     );
