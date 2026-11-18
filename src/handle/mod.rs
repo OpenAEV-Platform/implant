@@ -1,5 +1,3 @@
-use std::time::Instant;
-
 use serde::{Deserialize, Serialize};
 
 pub mod handle_command;
@@ -22,11 +20,4 @@ pub struct ExecutionParam {
     pub agent_id: String,
     pub tenant_id: String,
     pub max_size: usize,
-    pub started_at: Instant,
-}
-
-impl ExecutionParam {
-    pub fn elapsed(&self) -> u128 {
-        self.started_at.elapsed().as_millis()
-    }
 }

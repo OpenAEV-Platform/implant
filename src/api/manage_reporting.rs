@@ -8,6 +8,7 @@ pub fn report_success(
     params: &ExecutionParam,
     stdout: String,
     stderr: Option<String>,
+    duration: u128,
 ) {
     let message = ExecutionOutput {
         stderr: stderr.unwrap_or_default(),
@@ -22,13 +23,19 @@ pub fn report_success(
         UpdateInput {
             execution_message,
             execution_status: String::from(STATUS_SUCCESS),
-            execution_duration: params.elapsed(),
+            execution_duration: duration,
             execution_action: params.semantic.clone(),
         },
     );
 }
 
-pub fn report_error(api: &Client, params: &ExecutionParam, stdout: Option<String>, stderr: String) {
+pub fn report_error(
+    api: &Client,
+    params: &ExecutionParam,
+    stdout: Option<String>,
+    stderr: String,
+    duration: u128,
+) {
     let message = ExecutionOutput {
         stdout: stdout.unwrap_or_default(),
         stderr,
@@ -42,7 +49,7 @@ pub fn report_error(api: &Client, params: &ExecutionParam, stdout: Option<String
         UpdateInput {
             execution_message,
             execution_status: String::from(STATUS_ERROR),
-            execution_duration: params.elapsed(),
+            execution_duration: duration,
             execution_action: params.semantic.clone(),
         },
     );
