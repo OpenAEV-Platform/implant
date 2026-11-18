@@ -202,6 +202,7 @@ pub fn handle_payload(
                 api,
                 contract_payload,
                 max_size,
+                duration,
             ),
             "FileDrop" => handle_file_drop(
                 inject_id.clone(),
@@ -209,6 +210,7 @@ pub fn handle_payload(
                 tenant_id.clone(),
                 api,
                 contract_payload,
+                duration,
             ),
             // "NetworkTraffic" => {}, // Not implemented yet
             _ => {
