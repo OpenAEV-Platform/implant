@@ -3,42 +3,30 @@ use crate::api::Client;
 use crate::handle::handle_file::handle_file;
 use crate::handle::handle_file_drop::handle_file_drop;
 use crate::process::file_exec::get_output_path;
-use mockito::{Mock, ServerGuard};
+use crate::tests::handle::platform::{
+    duration_since_five_seconds_ago, mock_callback, started_five_seconds_ago, AGENT_ID, INJECT_ID,
+    TENANT_ID, TOKEN,
+};
+use mockito::{Matcher, Mock, ServerGuard};
 use serde_json::json;
 use std::fs;
+use std::time::Instant;
 
-const TENANT_ID: &str = "tenant";
-const AGENT_ID: &str = "agent";
-const INJECT_ID: &str = "inject";
 const DOCUMENT_ID: &str = "document";
-const TOKEN: &str = "token";
 
-fn mock_platform(server: &mut ServerGuard, filename: &str) -> Vec<Mock> {
-    vec![
-        server
-            .mock(
-                "GET",
-                format!("/api/tenants/{TENANT_ID}/documents/{DOCUMENT_ID}/agent-file").as_str(),
-            )
-            .with_status(200)
-            .with_header(
-                "content-disposition",
-                &format!("attachment; filename=\"{filename}\""),
-            )
-            .with_body("payload")
-            .create(),
-        server
-            .mock(
-                "POST",
-                format!(
-                    "/api/tenants/{TENANT_ID}/injects/execution/{AGENT_ID}/callback/{INJECT_ID}"
-                )
-                .as_str(),
-            )
-            .with_status(200)
-            .with_body(json!({ "inject_id": INJECT_ID }).to_string())
-            .create(),
-    ]
+fn mock_document(server: &mut ServerGuard, filename: &str) -> Mock {
+    server
+        .mock(
+            "GET",
+            format!("/api/tenants/{TENANT_ID}/documents/{DOCUMENT_ID}/agent-file").as_str(),
+        )
+        .with_status(200)
+        .with_header(
+            "content-disposition",
+            &format!("attachment; filename=\"{filename}\""),
+        )
+        .with_body("payload")
+        .create()
 }
 
 fn payload_path(filename: &str) -> std::path::PathBuf {
@@ -53,7 +41,8 @@ fn test_handle_file_keeps_downloaded_file_for_execution() {
     let filename = "handle-file-keeps.sh";
     let path = payload_path(filename);
     let mut server = mockito::Server::new();
-    let _mocks = mock_platform(&mut server, filename);
+    let _document = mock_document(&mut server, filename);
+    let _callback = mock_callback(&mut server, Matcher::Any);
     let client = Client::new(server.url(), TOKEN.to_string(), false, false);
 
     // -- EXECUTE --
@@ -64,6 +53,7 @@ fn test_handle_file_keeps_downloaded_file_for_execution() {
         &client,
         &Some(DOCUMENT_ID.to_string()),
         false,
+        Instant::now(),
     );
 
     // -- ASSERT --
@@ -75,12 +65,13 @@ fn test_handle_file_keeps_downloaded_file_for_execution() {
 }
 
 #[test]
-fn test_handle_file_drop_deletes_downloaded_file() {
+fn test_handle_file_drop_deletes_downloaded_file_and_sends_time_since_start() {
     // -- PREPARE --
     let filename = "handle-file-drop-deletes.txt";
     let path = payload_path(filename);
     let mut server = mockito::Server::new();
-    let _mocks = mock_platform(&mut server, filename);
+    let _document = mock_document(&mut server, filename);
+    let trace_with_time_since_start = mock_callback(&mut server, duration_since_five_seconds_ago());
     let client = Client::new(server.url(), TOKEN.to_string(), false, false);
     let payload: InjectorContractPayload = serde_json::from_value(json!({
         "payload_type": "FileDrop",
@@ -95,8 +86,10 @@ fn test_handle_file_drop_deletes_downloaded_file() {
         TENANT_ID.to_string(),
         &client,
         &payload,
+        started_five_seconds_ago(),
     );
 
     // -- ASSERT --
     assert!(!path.exists(), "a dropped file is deleted after download");
+    trace_with_time_since_start.assert();
 }

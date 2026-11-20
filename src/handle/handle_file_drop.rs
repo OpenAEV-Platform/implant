@@ -1,3 +1,5 @@
+use std::time::Instant;
+
 use crate::api::manage_inject::InjectorContractPayload;
 use crate::api::Client;
 use crate::handle::handle_file::handle_file;
@@ -9,9 +11,18 @@ pub fn handle_file_drop(
     tenant_id: String,
     api: &Client,
     contract_payload: &InjectorContractPayload,
+    started_at: Instant,
 ) {
     let InjectorContractPayload { file_drop_file, .. } = contract_payload;
-    if let Ok(filename) = handle_file(inject_id, agent_id, tenant_id, api, file_drop_file, false) {
+    if let Ok(filename) = handle_file(
+        inject_id,
+        agent_id,
+        tenant_id,
+        api,
+        file_drop_file,
+        false,
+        started_at,
+    ) {
         let _ = delete_file(&filename);
     }
 }

@@ -104,7 +104,7 @@ pub fn handle_payload(
     tenant_id: String,
     api: &Client,
     contract_payload: &InjectorContractPayload,
-    duration: Instant,
+    started_at: Instant,
     max_size: usize,
 ) {
     let mut prerequisites_code = 0;
@@ -151,6 +151,7 @@ pub fn handle_payload(
                 &check_prerequisites,
                 &prerequisite.executor,
                 true,
+                started_at,
             );
         }
         // If exit 0, prerequisite are already satisfied
@@ -168,6 +169,7 @@ pub fn handle_payload(
                 &install_prerequisites,
                 &prerequisite.executor,
                 false,
+                started_at,
             );
         }
     }
@@ -184,6 +186,7 @@ pub fn handle_payload(
                 api,
                 contract_payload,
                 max_size,
+                started_at,
             ),
             "DnsResolution" => handle_dns_resolution(
                 inject_id.clone(),
@@ -191,6 +194,7 @@ pub fn handle_payload(
                 tenant_id.clone(),
                 api,
                 contract_payload,
+                started_at,
             ),
             "Executable" => handle_file_execute(
                 inject_id.clone(),
@@ -199,6 +203,7 @@ pub fn handle_payload(
                 api,
                 contract_payload,
                 max_size,
+                started_at,
             ),
             "FileDrop" => handle_file_drop(
                 inject_id.clone(),
@@ -206,6 +211,7 @@ pub fn handle_payload(
                 tenant_id.clone(),
                 api,
                 contract_payload,
+                started_at,
             ),
             // "NetworkTraffic" => {}, // Not implemented yet
             _ => {
@@ -216,7 +222,7 @@ pub fn handle_payload(
                     UpdateInput {
                         execution_message: String::from("Payload execution type not supported."),
                         execution_status: String::from(STATUS_ERROR),
-                        execution_duration: duration.elapsed().as_millis(),
+                        execution_duration: started_at.elapsed().as_millis(),
                         execution_action: String::from("command_execution"),
                     },
                 );
@@ -243,6 +249,7 @@ pub fn handle_payload(
                 &executable_cleanup,
                 &executor,
                 false,
+                started_at,
             );
         }
     }
@@ -254,7 +261,7 @@ pub fn handle_payload(
         UpdateInput {
             execution_message: String::from("Payload completed"),
             execution_status: String::from(STATUS_INFO),
-            execution_duration: duration.elapsed().as_millis(),
+            execution_duration: started_at.elapsed().as_millis(),
             execution_action: String::from("complete"),
         },
     );
@@ -262,7 +269,7 @@ pub fn handle_payload(
 
 fn main() -> Result<(), Error> {
     set_error_hook();
-    let duration = Instant::now();
+    let started_at = Instant::now();
     let current_exe_path = env::current_exe().unwrap();
     let parent_path = current_exe_path.parent().unwrap();
     let _logger_file = common::logger::init_logger(parent_path);
@@ -300,7 +307,7 @@ fn main() -> Result<(), Error> {
         args.tenant_id.clone(),
         &api,
         &contract_payload,
-        duration,
+        started_at,
         args.max_size.unwrap(),
     );
     // endregion

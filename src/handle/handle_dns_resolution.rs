@@ -1,4 +1,5 @@
 use std::net::{SocketAddr, ToSocketAddrs};
+use std::time::Instant;
 
 use log::info;
 
@@ -13,6 +14,7 @@ pub fn handle_dns_resolution(
     tenant_id: String,
     api: &Client,
     contract_payload: &InjectorContractPayload,
+    started_at: Instant,
 ) {
     let hostname_raw = &contract_payload.dns_resolution_hostname;
     let data = hostname_raw.clone().unwrap();
@@ -44,7 +46,7 @@ pub fn handle_dns_resolution(
                 UpdateInput {
                     execution_message: serde_json::to_string(&message).unwrap(),
                     execution_status: String::from(STATUS_SUCCESS),
-                    execution_duration: 0,
+                    execution_duration: started_at.elapsed().as_millis(),
                     execution_action: String::from("dns_resolution"),
                 }
             }
@@ -59,7 +61,7 @@ pub fn handle_dns_resolution(
                 UpdateInput {
                     execution_message: serde_json::to_string(&message).unwrap(),
                     execution_status: String::from(STATUS_ERROR),
-                    execution_duration: 0,
+                    execution_duration: started_at.elapsed().as_millis(),
                     execution_action: String::from("dns_resolution"),
                 }
             }

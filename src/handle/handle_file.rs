@@ -10,21 +10,20 @@ use crate::handle::ExecutionParam;
 use crate::process::file_exec::file_execution;
 
 pub fn handle_execution_file(
-    semantic: &str,
     api: &Client,
     inject_id: String,
     agent_id: String,
     tenant_id: String,
     filename: &String,
     max_size: usize,
+    started_at: Instant,
 ) -> i32 {
-    let now = Instant::now();
-    info!("{semantic} execution: {filename:?}");
+    info!("file_execution execution: {filename:?}");
     let command_result = file_execution(filename.as_str());
-    let elapsed = now.elapsed().as_millis();
+    let elapsed = started_at.elapsed().as_millis();
     handle_execution_result(
         &ExecutionParam {
-            semantic: semantic.to_owned(),
+            semantic: String::from("file_execution"),
             inject_id,
             agent_id,
             tenant_id,
@@ -43,6 +42,7 @@ pub fn handle_file(
     api: &Client,
     file_target: &Option<String>,
     in_memory: bool,
+    started_at: Instant,
 ) -> Result<String, Error> {
     match file_target {
         None => {
@@ -58,14 +58,13 @@ pub fn handle_file(
                 },
                 None,
                 stderr.clone(),
-                0,
+                started_at.elapsed().as_millis(),
             );
             Err(Error::Internal(stderr))
         }
         Some(document_id) => {
-            let now = Instant::now();
             let download = api.download_file(document_id, tenant_id.clone(), in_memory);
-            let elapsed = now.elapsed().as_millis();
+            let elapsed = started_at.elapsed().as_millis();
             match download {
                 Ok(filename) => {
                     let stdout = String::from("File downloaded with success");
