@@ -58,7 +58,7 @@ pub fn handle_file(
                 },
                 None,
                 stderr.clone(),
-                0,
+                started_at.elapsed().as_millis(),
             );
             Err(Error::Internal(stderr))
         }
