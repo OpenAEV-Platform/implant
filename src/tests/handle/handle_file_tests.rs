@@ -71,7 +71,7 @@ fn test_handle_file_drop_deletes_downloaded_file_and_sends_time_since_start() {
     let path = payload_path(filename);
     let mut server = mockito::Server::new();
     let _document = mock_document(&mut server, filename);
-    let callback = mock_callback(&mut server, duration_since_five_seconds_ago());
+    let trace_with_time_since_start = mock_callback(&mut server, duration_since_five_seconds_ago());
     let client = Client::new(server.url(), TOKEN.to_string(), false, false);
     let payload: InjectorContractPayload = serde_json::from_value(json!({
         "payload_type": "FileDrop",
@@ -91,5 +91,5 @@ fn test_handle_file_drop_deletes_downloaded_file_and_sends_time_since_start() {
 
     // -- ASSERT --
     assert!(!path.exists(), "a dropped file is deleted after download");
-    callback.assert();
+    trace_with_time_since_start.assert();
 }

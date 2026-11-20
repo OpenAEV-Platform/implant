@@ -11,7 +11,7 @@ use serde_json::json;
 fn test_handle_dns_resolution_sends_time_since_start() {
     // -- PREPARE --
     let mut server = mockito::Server::new();
-    let callback = mock_callback(&mut server, duration_since_five_seconds_ago());
+    let trace_with_time_since_start = mock_callback(&mut server, duration_since_five_seconds_ago());
     let client = Client::new(server.url(), TOKEN.to_string(), false, false);
     let payload: InjectorContractPayload = serde_json::from_value(json!({
         "payload_type": "DnsResolution",
@@ -30,5 +30,5 @@ fn test_handle_dns_resolution_sends_time_since_start() {
     );
 
     // -- ASSERT --
-    callback.assert();
+    trace_with_time_since_start.assert();
 }
