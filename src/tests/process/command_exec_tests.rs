@@ -9,6 +9,7 @@ use crate::common::execution_result::decode_output;
 #[cfg(windows)]
 use crate::process::command_exec::format_powershell_command;
 use crate::process::command_exec::invoke_command;
+use crate::process::exec_utils::prefer_pwsh;
 
 // -- DECODE_OUTPUT --
 
@@ -193,4 +194,19 @@ fn test_real_powershell_warning() {
     assert_eq!(result.exit_code, 0);
     assert_eq!(result.status, STATUS_WARNING);
     assert!(result.stdout.contains("ok"));
+}
+
+#[test]
+fn psh_uses_pwsh_when_it_is_installed() {
+    assert_eq!(prefer_pwsh("powershell", |name| name == "pwsh"), "pwsh");
+    assert_eq!(
+        prefer_pwsh("powershell.exe", |name| name == "pwsh.exe"),
+        "pwsh"
+    );
+}
+
+#[test]
+fn psh_keeps_windows_powershell_when_pwsh_is_absent() {
+    assert_eq!(prefer_pwsh("powershell", |_| false), "powershell");
+    assert_eq!(prefer_pwsh("powershell.exe", |_| false), "powershell.exe");
 }

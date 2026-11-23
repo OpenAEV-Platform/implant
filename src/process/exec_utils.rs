@@ -11,6 +11,16 @@ pub fn is_executor_present(executor: &str) -> bool {
         .unwrap_or(false)
 }
 
+/// PowerShell 7+ is `pwsh`. Windows PowerShell 5.1 is `powershell`.
+/// Prefer `pwsh` when it is installed so a PSH payload does not stay on 5.1.
+pub fn prefer_pwsh<'a>(fallback: &'a str, present: impl Fn(&str) -> bool) -> &'a str {
+    if present("pwsh") || present("pwsh.exe") {
+        "pwsh"
+    } else {
+        fallback
+    }
+}
+
 pub fn decode_filename(name: &str) -> Result<String, Error> {
     percent_decode_str(name)
         .decode_utf8()
