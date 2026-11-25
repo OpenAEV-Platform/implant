@@ -8,6 +8,7 @@ use std::sync::atomic::AtomicBool;
 use std::time::Instant;
 
 use crate::api::manage_inject::{InjectorContractPayload, UpdateInput};
+use crate::api::retry::{RetryPolicy, DEFAULT_REQUEST_TIMEOUT_SECS, DEFAULT_RETRY_BUDGET_SECS};
 use crate::api::Client;
 use crate::common::constants::{STATUS_ERROR, STATUS_INFO};
 use crate::common::error_model::Error;
@@ -49,6 +50,24 @@ struct Args {
     tenant_id: String,
     #[arg(short, long, default_value = "1000000")]
     max_size: Option<usize>,
+    /// Timeout of one request to the platform, in seconds
+    #[arg(long, default_value_t = DEFAULT_REQUEST_TIMEOUT_SECS)]
+    request_timeout: u64,
+    /// Time spent retrying a request on transport errors, 5xx and 429, in seconds
+    #[arg(long, default_value_t = DEFAULT_RETRY_BUDGET_SECS)]
+    retry_budget: u64,
+}
+
+impl Args {
+    fn client(&self) -> Client {
+        Client::with_retry_policy(
+            self.uri.clone(),
+            self.token.clone(),
+            self.unsecured_certificate == "true",
+            self.with_proxy == "true",
+            RetryPolicy::from_secs(self.request_timeout, self.retry_budget),
+        )
+    }
 }
 
 // Get and log all errors from the implant execution
@@ -74,12 +93,7 @@ pub fn set_error_hook() {
         error!("An error occurred in file {filename:?} line {line:?}: {cause:?}");
         // Send the error and logs to OpenAEV for the inject and agent concerned
         let args = Args::parse();
-        let api = Client::new(
-            args.uri,
-            args.token,
-            args.unsecured_certificate == "true",
-            args.with_proxy == "true",
-        );
+        let api = args.client();
         let _ = api.update_status(
             args.inject_id,
             args.agent_id,
@@ -267,6 +281,36 @@ pub fn handle_payload(
     );
 }
 
+/// Fetches the inject payload; on a definitive failure, reports an ERROR trace naming the
+/// failure (transport error or HTTP status) and returns None.
+pub fn fetch_payload(
+    api: &Client,
+    inject_id: &str,
+    agent_id: &str,
+    tenant_id: &str,
+    started_at: Instant,
+) -> Option<InjectorContractPayload> {
+    match api.get_executable_payload(inject_id, agent_id, tenant_id) {
+        Ok(contract_payload) => Some(contract_payload),
+        Err(err) => {
+            let message = format!("Fail getting payload: {err}");
+            error!("{message}");
+            let _ = api.update_status(
+                inject_id.to_string(),
+                agent_id.to_string(),
+                tenant_id.to_string(),
+                UpdateInput {
+                    execution_message: message,
+                    execution_status: String::from(STATUS_ERROR),
+                    execution_duration: started_at.elapsed().as_millis(),
+                    execution_action: String::from("complete"),
+                },
+            );
+            None
+        }
+    }
+}
+
 fn main() -> Result<(), Error> {
     set_error_hook();
     let started_at = Instant::now();
@@ -289,18 +333,17 @@ fn main() -> Result<(), Error> {
 
     let args = Args::parse();
     info!("Starting OpenAEV implant {} {}", VERSION, mode());
-    let api = Client::new(
-        args.uri,
-        args.token,
-        args.unsecured_certificate == "true",
-        args.with_proxy == "true",
-    );
-    let payload = api.get_executable_payload(
-        args.inject_id.as_str(),
-        args.agent_id.as_str(),
-        args.tenant_id.as_str(),
-    );
-    let contract_payload = payload.unwrap_or_else(|err| panic!("Fail getting payload {err}"));
+    let api = args.client();
+    let contract_payload = match fetch_payload(
+        &api,
+        &args.inject_id,
+        &args.agent_id,
+        &args.tenant_id,
+        started_at,
+    ) {
+        Some(contract_payload) => contract_payload,
+        None => std::process::exit(1),
+    };
     handle_payload(
         args.inject_id.clone(),
         args.agent_id.clone(),

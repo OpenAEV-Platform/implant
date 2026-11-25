@@ -1,3 +1,4 @@
+use super::retry::send_with_retry;
 use super::Client;
 use crate::common::error_model::Error;
 use crate::process::exec_utils::decode_filename;
@@ -10,8 +11,6 @@ use serde::{Deserialize, Serialize};
 use serde_json::json;
 use std::fs::File;
 use std::io::{BufWriter, Write};
-use std::thread::sleep;
-use std::time::Duration;
 use std::{fs, io};
 
 pub fn write_response<W>(writer: W, response: reqwest::blocking::Response) -> std::io::Result<u64>
@@ -87,26 +86,17 @@ impl Client {
         agent_id: &str,
         tenant_id: &str,
     ) -> Result<InjectorContractPayload, Error> {
-        match self
-            .get(&format!(
-                "/api/tenants/{tenant_id}/injects/{inject_id}/{agent_id}/executable-payload"
-            ))
-            .send()
-        {
-            Ok(response) => {
-                if response.status().is_success() {
-                    response
-                        .json::<InjectorContractPayload>()
-                        .map_err(|e| Error::Internal(e.to_string()))
-                } else {
-                    let msg = response
-                        .text()
-                        .unwrap_or_else(|_| "Unknown error".to_string());
-                    Err(Error::Api(msg))
-                }
-            }
-            Err(err) => Err(Error::Internal(err.to_string())),
-        }
+        let route =
+            format!("/api/tenants/{tenant_id}/injects/{inject_id}/{agent_id}/executable-payload");
+        let response = send_with_retry(
+            self.retry_policy(),
+            &format!("payload fetch for inject id: {inject_id:?}"),
+            false,
+            || self.get(&route),
+        )?;
+        response
+            .json::<InjectorContractPayload>()
+            .map_err(|e| Error::Internal(format!("invalid payload answer: {e}")))
     }
 
     pub fn update_status(
@@ -116,62 +106,21 @@ impl Client {
         tenant_id: String,
         input: UpdateInput,
     ) -> Result<UpdateInjectResponse, Error> {
-        self.update_status_retry(inject_id, agent_id, tenant_id, input, 20)
-    }
-
-    fn update_status_retry(
-        &self,
-        inject_id: String,
-        agent_id: String,
-        tenant_id: String,
-        input: UpdateInput,
-        retry: u64,
-    ) -> Result<UpdateInjectResponse, Error> {
         let post_data = json!(input);
-        match self
-            .post(&format!(
-                "/api/tenants/{tenant_id}/injects/execution/{agent_id}/callback/{inject_id}"
-            ))
-            .json(&post_data)
-            .send()
-        {
-            Ok(response) => {
-                self.update_status_response(response, inject_id, agent_id, tenant_id, input, retry)
-            }
-            Err(err) => Err(Error::Internal(err.to_string())),
-        }
-    }
-
-    fn update_status_response(
-        &self,
-        response: Response,
-        inject_id: String,
-        agent_id: String,
-        tenant_id: String,
-        input: UpdateInput,
-        retry: u64,
-    ) -> Result<UpdateInjectResponse, Error> {
-        if response.status().is_success() {
-            info!(
-                "response {} to update status for inject id: {:?} and agent id: {:?}",
-                response.status(),
-                inject_id,
-                agent_id
-            );
-            response
-                .json::<UpdateInjectResponse>()
-                .map_err(|e| Error::Internal(e.to_string()))
-        } else if response.status().is_client_error() && retry > 0 {
-            sleep(Duration::from_secs(10));
-            info!("retry {retry:?} to update status for inject id: {inject_id:?} and agent id: {agent_id:?}");
-            self.update_status_retry(inject_id, agent_id, tenant_id, input, retry - 1)
-        } else {
-            let msg = response
-                .text()
-                .unwrap_or_else(|_| "Unknown error".to_string());
-            error!("error message {msg:?} to update status for inject id: {inject_id:?} and agent id: {agent_id:?}");
-            Err(Error::Api(msg))
-        }
+        let route =
+            format!("/api/tenants/{tenant_id}/injects/execution/{agent_id}/callback/{inject_id}");
+        let what = format!(
+            "status update {:?} for inject id: {inject_id:?} and agent id: {agent_id:?}",
+            input.execution_action
+        );
+        let response = send_with_retry(self.retry_policy(), &what, true, || {
+            self.post(&route).json(&post_data)
+        })?;
+        info!("response {} to {what}", response.status());
+        response.json::<UpdateInjectResponse>().map_err(|e| {
+            error!("invalid answer to {what}: {e}");
+            Error::Internal(e.to_string())
+        })
     }
 
     /// Downloads a document (dropped file / executable payload) as the service-account (implant)
