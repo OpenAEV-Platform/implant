@@ -2,6 +2,9 @@ use std::time::Duration;
 
 pub mod manage_inject;
 pub mod manage_reporting;
+pub mod retry;
+
+use retry::RetryPolicy;
 
 pub const VERSION: &str = env!("CARGO_PKG_VERSION");
 pub const AUTHORIZATION_HEADER: &str = "Authorization";
@@ -11,6 +14,7 @@ pub struct Client {
     http_client: reqwest::blocking::Client,
     server_url: String,
     token: String,
+    retry_policy: RetryPolicy,
 }
 
 impl Client {
@@ -20,10 +24,27 @@ impl Client {
         unsecured_certificate: bool,
         with_proxy: bool,
     ) -> Client {
+        Client::with_retry_policy(
+            server_url,
+            token,
+            unsecured_certificate,
+            with_proxy,
+            RetryPolicy::default(),
+        )
+    }
+
+    pub fn with_retry_policy(
+        server_url: String,
+        token: String,
+        unsecured_certificate: bool,
+        with_proxy: bool,
+        retry_policy: RetryPolicy,
+    ) -> Client {
+        let connect_timeout = retry_policy.request_timeout.min(Duration::from_secs(10));
         let mut http_client = reqwest::blocking::Client::builder()
             .use_rustls_tls()
-            .connect_timeout(Duration::from_secs(2))
-            .timeout(Duration::from_secs(5))
+            .connect_timeout(connect_timeout)
+            .timeout(retry_policy.request_timeout)
             .user_agent(format!("openaev-implant/{VERSION}"));
         // reqwest 0.13's `rustls` feature trusts the OS store only; add the bundled Mozilla roots
         // back so trust stays what it was under 0.12's rustls-tls + rustls-tls-native-roots.
@@ -48,7 +69,12 @@ impl Client {
             http_client: http_client.build().unwrap(),
             server_url: url,
             token,
+            retry_policy,
         }
+    }
+
+    pub fn retry_policy(&self) -> &RetryPolicy {
+        &self.retry_policy
     }
 
     pub fn post(&self, route: &str) -> reqwest::blocking::RequestBuilder {
