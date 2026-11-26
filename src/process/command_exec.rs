@@ -8,7 +8,7 @@ use crate::common::constants::{EXECUTOR_BASH, EXECUTOR_CMD, EXECUTOR_POWERSHELL,
 use crate::common::error_model::Error;
 use crate::common::execution_result::{handle_io_error, manage_result, ExecutionResult};
 use crate::handle::handle_command::compute_command;
-use crate::process::exec_utils::is_executor_present;
+use crate::process::exec_utils::{is_executor_present, prefer_pwsh};
 
 #[cfg(windows)]
 use std::os::windows::process::CommandExt;
@@ -59,7 +59,7 @@ pub fn format_windows_command(command: String) -> String {
 pub fn get_executor(executor: &str) -> &str {
     match executor {
         EXECUTOR_CMD | EXECUTOR_BASH | EXECUTOR_SH => executor,
-        _ => EXECUTOR_POWERSHELL,
+        _ => prefer_pwsh(EXECUTOR_POWERSHELL, is_executor_present),
     }
 }
 
@@ -67,7 +67,7 @@ pub fn get_executor(executor: &str) -> &str {
 pub fn get_executor(executor: &str) -> &str {
     match executor {
         EXECUTOR_BASH => executor,
-        EXECUTOR_PSH => EXECUTOR_POWERSHELL,
+        EXECUTOR_PSH => prefer_pwsh(EXECUTOR_POWERSHELL, is_executor_present),
         _ => EXECUTOR_SH,
     }
 }

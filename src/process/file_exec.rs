@@ -9,11 +9,14 @@ use crate::common::constants::EXECUTOR_BASH;
 use crate::common::constants::EXECUTOR_POWERSHELL;
 use crate::common::error_model::Error;
 use crate::common::execution_result::{handle_io_error, manage_result, ExecutionResult};
+#[cfg(windows)]
+use crate::process::exec_utils::{is_executor_present, prefer_pwsh, sanitize_filename};
+#[cfg(unix)]
 use crate::process::exec_utils::{is_executor_present, sanitize_filename};
 
 #[cfg(windows)]
 pub fn file_execution(filename: &str) -> Result<ExecutionResult, Error> {
-    let executor = "powershell.exe";
+    let executor = prefer_pwsh("powershell.exe", is_executor_present);
     if !is_executor_present(executor) {
         return Err(Error::Internal(format!(
             "Executor '{executor}' is not available."
