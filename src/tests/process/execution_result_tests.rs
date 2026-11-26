@@ -177,3 +177,31 @@ fn test_unix_exit_codes() {
     let result = manage_result(output, false, EXECUTOR_SH).unwrap();
     assert_eq!(result.status, STATUS_ERROR);
 }
+
+// Base64 obfuscation runs the payload as `powershell -Enc`. Windows PowerShell
+// then writes the error stream as CLIXML when stderr is redirected. The same
+// payload in plain text reports the error text below (issue 72).
+#[test]
+fn test_base64_obfuscation_clixml_stderr() {
+    let clixml = "#< CLIXML\r\n<Objs Version=\"1.1.0.1\" xmlns=\"http://schemas.microsoft.com/powershell/2004/04\"><Obj S=\"progress\" RefId=\"0\"><TN RefId=\"0\"><T>System.Management.Automation.PSCustomObject</T><T>System.Object</T></TN><MS><I64 N=\"SourceId\">1</I64><PR N=\"Record\"><AV>Preparing modules for first use.</AV><AI>0</AI><Nil /><PI>-1</PI><PC>-1</PC><T>Completed</T><SR>-1</SR><SD> </SD></PR></MS></Obj><Obj S=\"progress\" RefId=\"1\"><TNRef RefId=\"0\" /><MS><I64 N=\"SourceId\">1</I64><PR N=\"Record\"><AV>Preparing modules for first use.</AV><AI>0</AI><Nil /><PI>-1</PI><PC>-1</PC><T>Completed</T><SR>-1</SR><SD> </SD></PR></MS></Obj><S S=\"Error\">Invoke-WebRequest : Unable to connect to the remote server_x000D__x000A_</S><S S=\"Error\">At line:2 char:1_x000D__x000A_</S><S S=\"Error\">+ Invoke-WebRequest -Uri http://127.0.0.1 -Method POST -Body $content_x000D__x000A_</S><S S=\"Error\">+ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~_x000D__x000A_</S><S S=\"Error\">    + CategoryInfo          : NotSpecified: (:) [Invoke-WebRequest], WebException_x000D__x000A_</S><S S=\"Error\">    + FullyQualifiedErrorId : System.Net.WebException,Microsoft.PowerShell.Commands.InvokeWebRequestCommand_x000D__x000A_</S><S S=\"Error\"> _x000D__x000A_</S></Objs>";
+    let expected = "Invoke-WebRequest : Unable to connect to the remote server\r\nAt line:2 char:1\r\n+ Invoke-WebRequest -Uri http://127.0.0.1 -Method POST -Body $content\r\n+ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~\r\n    + CategoryInfo          : NotSpecified: (:) [Invoke-WebRequest], WebException\r\n    + FullyQualifiedErrorId : System.Net.WebException,Microsoft.PowerShell.Commands.InvokeWebRequestCommand\r\n \r\n";
+    let output = make_output(1, "", clixml);
+    let result = manage_result(output, false, EXECUTOR_POWERSHELL).unwrap();
+    assert_eq!(result.exit_code, 1);
+    assert_eq!(result.stdout, "");
+    assert_eq!(result.stderr, expected);
+    assert_eq!(result.status, STATUS_ERROR);
+
+    // Progress records alone are not a warning, and ordinary stderr is kept.
+    let progress_only = "#< CLIXML\r\n<Objs Version=\"1.1.0.1\" xmlns=\"http://schemas.microsoft.com/powershell/2004/04\"><Obj S=\"progress\" RefId=\"0\"><TN RefId=\"0\"><T>System.Management.Automation.PSCustomObject</T><T>System.Object</T></TN><MS><I64 N=\"SourceId\">1</I64><PR N=\"Record\"><AV>Preparing modules for first use.</AV><AI>0</AI><Nil /><PI>-1</PI><PC>-1</PC><T>Completed</T><SR>-1</SR><SD> </SD></PR></MS></Obj></Objs>";
+    let output = make_output(0, "ok", progress_only);
+    let result = manage_result(output, false, EXECUTOR_POWERSHELL).unwrap();
+    assert_eq!(result.stdout, "ok");
+    assert_eq!(result.stderr, "");
+    assert_eq!(result.status, STATUS_SUCCESS);
+
+    let output = make_output(0, "ok", "some warning");
+    let result = manage_result(output, false, EXECUTOR_POWERSHELL).unwrap();
+    assert_eq!(result.stderr, "some warning");
+    assert_eq!(result.status, STATUS_WARNING);
+}
